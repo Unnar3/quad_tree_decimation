@@ -20,10 +20,10 @@ rosbuild_prepare_qt4(QtCore QtXml)
 #add_message_files(FILES
 #)
 
-generate_messages(DEPENDENCIES
-	std_msgs
-	sensor_msgs
-)
+#generate_messages(DEPENDENCIES
+#	std_msgs
+#	sensor_msgs
+#)
 
 find_package(CGAL REQUIRED COMPONENTS Core)
 
@@ -31,7 +31,7 @@ catkin_package(
 	DEPENDS
 	CATKIN_DEPENDS roscpp message_runtime qt_build
 	INCLUDE_DIRS include
-	LIBRARIES plane_extraction
+	LIBRARIES qtd_plane_extraction
 )
 
 include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${CGAL_INCLUDE_DIRS})
@@ -39,6 +39,13 @@ include(${CGAL_USE_FILE})
 
 add_library(qtd_plane_extraction src/plane_extraction.cpp)
 target_link_libraries(qtd_plane_extraction ${catkin_LIBRARIES})
+
+add_library(qtd_quad_tree src/quad_tree.cpp)
+target_link_libraries(qtd_quad_tree ${catkin_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} gmp)
+
+add_library(qtd_quad_tree_pcl src/quad_tree_pcl.cpp)
+target_link_libraries(qtd_quad_tree_pcl qtd_quad_tree ${catkin_LIBRARIES})
+
 
 #add_library(compression src/compression.cpp)
 #add_library(reconstruction src/reconstruction.cpp)
