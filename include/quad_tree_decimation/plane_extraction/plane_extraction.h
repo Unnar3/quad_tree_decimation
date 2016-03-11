@@ -3,6 +3,7 @@
 
 
 // #include <planeDetectionComparison/utils.h>
+#include <quad_tree_decimation/point_types/surfel_type.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/ModelCoefficients.h>

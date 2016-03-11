@@ -46,11 +46,5 @@ target_link_libraries(qtd_quad_tree ${catkin_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL
 add_library(qtd_quad_tree_pcl src/quad_tree_pcl.cpp)
 target_link_libraries(qtd_quad_tree_pcl qtd_quad_tree ${catkin_LIBRARIES})
 
-
-#add_library(compression src/compression.cpp)
-#add_library(reconstruction src/reconstruction.cpp)
-#add_library(plane_extraction src/plane_extraction.cpp)
-#add_library(utils include/utils/utils.cpp)
-#target_link_libraries(compression utils ${catkin_LIBRARIES} libvtkCommon.so libvtkFiltering.so libvtkGraphics.so)
-#target_link_libraries(reconstruction ${catkin_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES})
-#target_link_libraries(plane_extraction ${catkin_LIBRARIES})
+add_library(qtd_utils src/utils.cpp)
+target_link_libraries(qtd_utils ${catkin_LIBRARIES})
