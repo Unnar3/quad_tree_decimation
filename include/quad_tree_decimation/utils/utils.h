@@ -1,14 +1,46 @@
 #ifndef QTD_UTILS_H
 #define QTD_UTILS_H
 
-
+#include <ros/ros.h>
 #include <quad_tree_decimation/point_types/surfel_type.h>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
+#include <pcl/Vertices.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/TextureMesh.h>
+#include <Eigen/Dense>
+#include <opencv2/opencv.hpp>
+
+namespace QTD{
 
 using NormalT = pcl::Normal;
 using NormalCloudT = pcl::PointCloud<NormalT>;
 using SurfelT = SurfelType;
 using SurfelCloudT = pcl::PointCloud<SurfelT>;
+
+
+template <typename T>
+struct objStruct{
+    std::vector<typename pcl::PointCloud<T>::Ptr>   clouds;
+    std::vector<std::vector<pcl::Vertices>>         polygons;
+    std::vector<std::vector<Eigen::Vector2f>>       texture_vertices;
+    std::vector<pcl::ModelCoefficients::Ptr>        coefficients;
+    std::vector<pcl::TexMaterial>                   materials;
+    std::vector<cv::Mat>                            images;
+
+    objStruct(int size){
+        clouds.reserve(size);
+        polygons.reserve(size);
+        texture_vertices.reserve(size);
+        coefficients.reserve(size);
+        materials.reserve(size);
+        images.reserve(size);
+    }
+};
+
+
+template <typename T>
+int saveOBJFile ( const std::string &file_name,  objStruct<T> &object, unsigned precision = 5 );
+
 
 template<typename PointT>
 NormalCloudT::Ptr compute_surfel_normals(SurfelCloudT::Ptr& surfel_cloud, typename pcl::PointCloud<PointT>::Ptr segment)
@@ -38,5 +70,12 @@ NormalCloudT::Ptr compute_surfel_normals(SurfelCloudT::Ptr& surfel_cloud, typena
     return normals;
 }
 
+namespace Parameters{
+	template<typename T>
+	T loadParam( std::string name, ros::NodeHandle &nh);
+}
 
+}
+
+#include "impl/utils.hpp"
 #endif

@@ -287,7 +287,7 @@ namespace QTD{
         std::vector<PointCloudT::Ptr> planes;
 
         std::vector<pcl::PointIndices> cluster_indices;
-        ecClustering<PointT>(plane, 0.1, 0, 1000000, planes, cluster_indices);
+        ecClustering<PointT>(plane, 0.05, 0, 1000000, planes, cluster_indices);
 
         if(planes.size() > 1){
             std::cout << "ecClustering" << std::endl;

@@ -29,7 +29,7 @@ void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr b
 
         // initialize the quadtree
         quad = QuadTree(1,width,x,y);
-        quad.setMaxWidth(0.05);
+        quad.setMaxWidth(0.1);
     }
 
     Polygon polygon;
