@@ -29,6 +29,7 @@ public:
     ~QuadTreePCL(){}
 
     void insertBoundary(typename pcl::PointCloud<PointT>::Ptr boundary);
+    void insertSegments(typename pcl::PointCloud<PointT>::Ptr boundary);
 
     template <typename T>
     void createMesh(typename pcl::PointCloud<T>::Ptr cloud, std::vector< pcl::Vertices > &vertices);
@@ -53,7 +54,8 @@ private:
 
     void rotateToAxis(typename pcl::PointCloud<PointT>::Ptr cloud, typename pcl::PointCloud<PointT>::Ptr out);
 
-    void rotateFromAxis(typename pcl::PointCloud<PointT>::Ptr cloud);
+    template <typename T>
+    void rotateFromAxis(typename pcl::PointCloud<T>::Ptr cloud);
 
     bool makePolygonSimple(Polygon &polygon, std::vector<Polygon> &polygons, float distance);
 

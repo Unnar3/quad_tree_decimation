@@ -69,6 +69,120 @@ void QuadTree::clear(){
 }
 
 
+void QuadTree::markAsExternal(  const std::vector<quadPoint> &polygon,
+                                const quadPoint &min,
+                                const quadPoint &max){
+
+    // Check if we are in a leaf
+    if(is_leaf_){
+        // Check if we are looking at a boundary
+        if(cellType_ != Boundary){
+            // need to check one corner of cell
+            // Check 1: inside or outside of bounding box.
+            if(x_ < min.x || x_ + width_ > max.x || y_ < min.y || y_ + width_ > max.y){
+                // some part of cell outside --> external
+                cellType_ = Exterior;
+            } else {
+                // need to do raytraycing
+                int count = 0;
+                for(size_t i = 0; i < polygon.size()-1; ++i){
+
+                    // First check if one x component is on the right
+                    if(polygon[i].x > x_+width_ || polygon[i+1].x > x_+width_){
+                        // count++;
+                        if(polygon[i].y == polygon[i+1].y){
+                            continue;
+                        }
+
+                        else if(polygon[i].y > polygon[i+1].y){
+                            if(y_ < polygon[i].y && y_ > polygon[i+1].y){
+                                float k = (polygon[i].x - polygon[i+1].x) / (polygon[i].y - polygon[i+1].y);
+                                float m = polygon[i].x - k * polygon[i].y;
+
+                                if(x_ < k * y_ + m){
+                                    count++;
+                                }
+                            }
+                        } else{
+                            if(y_ < polygon[i+1].y && y_ > polygon[i].y){
+                                float k = (polygon[i].x - polygon[i+1].x) / (polygon[i].y - polygon[i+1].y);
+                                float m = polygon[i].x - k * polygon[i].y;
+
+                                if(x_ < k * y_ + m){
+                                    count++;
+                                }
+                            }
+                        }
+                    }
+                }
+                if(!(count % 2)){
+                    cellType_ = Exterior;
+                }
+            }
+        }
+    } else {
+        for(auto &n : nodes){
+            n.markAsExternal(polygon, min, max);
+        }
+    }
+
+}
+
+bool QuadTree::insertSegment(quadPoint a, quadPoint b){
+
+    bool doesIntersect = segmentIntersectsCell(a,b);
+    // std::cout << "intersects: " << doesIntersect << std::endl;
+    // std::cout << " " << std::endl;
+    if( doesIntersect ){
+        if( !QuadTree::maxDepth() ){
+            // Create new leafs.
+            if(is_leaf_){
+                QuadTree::createSubNodesAndInherit();
+            }
+            for(auto &n : nodes){
+                n.insertSegment(a,b);
+            }
+        } else {
+            cellType_ = Boundary;
+        }
+        return true;
+    } else {
+        if(is_leaf_ && cellType_ != Boundary)
+            cellType_ = Interior;
+        return false;
+    }
+}
+
+bool QuadTree::segmentIntersectsCell(quadPoint a, quadPoint b){
+    // Check if line intersects cells x-axis shadow
+
+    // std::cout << "cell x: " << x_ << " y_: " << y_ << " width_: " << width_ << std::endl;
+    // std::cout << "A x: " << a.x << " y: " << a.y << std::endl;
+    // std::cout << "B x: " << b.x << " y: " << b.y << std::endl;
+
+
+    if(a.x > x_+width_ && b.x > x_+width_) return false;
+    if(a.y > y_+width_ && b.y > y_+width_) return false;
+    if(a.x < x_ && b.x < x_) return false;
+    if(a.y < y_ && b.y < y_) return false;
+
+    // y and x axis shadows do intersect.
+    // Check if all for cell corners lie on the same side of the line.
+    float y_slope = (b.y-a.y);
+    float x_slope = (a.x-b.x);
+    float m = b.x*a.y-a.x*b.y;
+    bool topleftSign = x_slope*(y_+width_) + y_slope*x_ +  m >= 0;
+
+    // Check if rest of corners have same sign
+    if( x_slope*(y_+width_) + y_slope*(x_+width_) +  m > 0 != topleftSign ) return true;
+    if( x_slope*(y_) + y_slope*(x_+width_) +  m > 0 != topleftSign ) return true;
+    if( x_slope*(y_) + y_slope*(x_) +  m > 0 != topleftSign ) return true;
+
+    // All corner points lie on the same side of the line
+    return false;
+}
+
+
 bool QuadTree::insertBoundary(Polygon polygon){
 
     Polygon cell;
@@ -249,6 +363,7 @@ bool QuadTree::polygonCompletelyWithinCell(Polygon &polygon){
 void QuadTree::extractCells(std::vector<QuadTree::Cell> &cells){
 
     if(is_leaf_ && cellType_ != Exterior && cellType_ != Hole){
+    // if(is_leaf_  && cellType_ != Hole){
         QuadTree::Cell c;
         c.x = x_;
         c.y = y_;

@@ -5,6 +5,55 @@
 namespace QTD{
 
 template <typename PointT>
+void QuadTreePCL<PointT>::insertSegments(typename pcl::PointCloud<PointT>::Ptr boundary){
+    // Convert to cgal polygon
+    if(boundary->size() == 0) return;
+
+    QuadTreePCL<PointT>::rotateToAxis(boundary);
+    PointT min, max;
+    pcl::getMinMax3D(*boundary, min, max);
+
+    std::cout << "min: " << min << std::endl;
+    std::cout << "max: " << max << std::endl;
+    std::vector<std::vector<int> > boundaryCells;
+
+    if(!inserted_){
+        // Determin the inital size of the quadtree
+        z_ = boundary->points[0].z;
+        float x = QuadTreePCL<PointT>::roundDown(min.x);
+        float y = QuadTreePCL<PointT>::roundDown(min.y);
+        float width = std::max(QuadTreePCL<PointT>::roundUp(max.x - x), QuadTreePCL<PointT>::roundUp(max.y - y));
+
+        std::cout << "x: " << x << std::endl;
+        std::cout << "y: " << y << std::endl;
+        std::cout << "width: " << width << std::endl;
+
+        // initialize the quadtree
+        quad = QuadTree(1,width,x,y);
+        // quad = QuadTree(1,5,0,0);
+        quad.setMaxWidth(0.1);
+        boundaryCells.resize(std::ceil(5.0/0.1));
+        inserted_ = true;
+    }
+
+    std::vector<QTD::quadPoint> qtd_boundary(boundary->size()+1);
+    QTD::quadPoint qtd_min(min.x, min.y);
+    QTD::quadPoint qtd_max(max.x, max.y);
+    QTD::quadPoint lastp(boundary->at(boundary->size()-1).x, boundary->at(boundary->size()-1).y);
+    qtd_boundary[0] = QTD::quadPoint(boundary->at(boundary->size()-1).x, boundary->at(boundary->size()-1).y);
+    for(size_t i = 0; i < boundary->size(); ++i){
+        qtd_boundary[i+1] = QTD::quadPoint(boundary->at(i).x, boundary->at(i).y);
+        quad.insertSegment( qtd_boundary[i], qtd_boundary[i+1] );
+    }
+
+    quad.markAsExternal(qtd_boundary, qtd_min, qtd_max);
+
+    QuadTreePCL<PointT>::rotateFromAxis<PointT>(boundary);
+
+}
+
+
+template <typename PointT>
 void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr boundary){
     // Convert to cgal polygon
     if(boundary->size() == 0) return;
@@ -109,7 +158,7 @@ void QuadTreePCL<PointT>::createMesh(typename pcl::PointCloud<T>::Ptr cloud, std
         vertices.push_back(vert);
 
     }
-    QuadTreePCL<PointT>::rotateFromAxis(cloud);
+    QuadTreePCL<PointT>::rotateFromAxis<T>(cloud);
 }
 
 template <typename PointT>
@@ -159,7 +208,8 @@ void QuadTreePCL<PointT>::rotateToAxis(typename pcl::PointCloud<PointT>::Ptr clo
 }
 
 template <typename PointT>
-void QuadTreePCL<PointT>::rotateFromAxis(typename pcl::PointCloud<PointT>::Ptr cloud){
+template <typename T>
+void QuadTreePCL<PointT>::rotateFromAxis(typename pcl::PointCloud<T>::Ptr cloud){
 
     if(quaternion_.x() == 0 &&quaternion_.y() == 0 && quaternion_.z() == 0){
         // no rotation needed.
@@ -170,6 +220,7 @@ void QuadTreePCL<PointT>::rotateFromAxis(typename pcl::PointCloud<PointT>::Ptr c
     pcl::transformPointCloud (*cloud, *cloud, rot);
 
 }
+
 template <typename PointT>
 bool QuadTreePCL<PointT>::makePolygonSimple(Polygon &polygon, std::vector<Polygon> &polygons, float distance){
 

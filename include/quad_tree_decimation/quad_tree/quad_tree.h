@@ -18,10 +18,22 @@ typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef K::Point_2 Point;
 typedef CGAL::Polygon_2<K>                                  Polygon;
 
+struct quadPoint{
+    float x;
+    float y;
+
+    quadPoint(){};
+    quadPoint(float x_, float y_){
+        x = x_;
+        y = y_;
+    }
+};
+
 class QuadTree{
 
 public:
     enum CellType{ Interior, Boundary, Exterior, Hole, Parent};
+
     struct Cell{
         float x;
         float y;
@@ -70,6 +82,10 @@ public:
     bool insertBoundary(Polygon polygon);
 
 
+    void markAsExternal(const std::vector<quadPoint> &polygon,
+                        const quadPoint &min,
+                        const quadPoint &max);
+    bool insertSegment(quadPoint a, quadPoint b);
     void insertHole(Polygon polygon);
     void extractCells(std::vector<QuadTree::Cell> &cells);
 
@@ -91,6 +107,7 @@ private:
     void createSubNodesAndInherit();
     void createSubNodesAndInherit(CellType type);
     bool polygonCompletelyWithinCell(Polygon &polygon);
+    bool segmentIntersectsCell(quadPoint a, quadPoint b);
 };
 
 }
