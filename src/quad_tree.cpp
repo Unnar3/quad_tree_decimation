@@ -70,6 +70,7 @@ void QuadTree::clear(){
 
 
 void QuadTree::markAsExternal(  const std::vector<quadPoint> &polygon,
+                                const std::vector<int> &holeIdx,
                                 const quadPoint &min,
                                 const quadPoint &max){
 
@@ -85,7 +86,16 @@ void QuadTree::markAsExternal(  const std::vector<quadPoint> &polygon,
             } else {
                 // need to do raytraycing
                 int count = 0;
-                for(size_t i = 0; i < polygon.size()-1; ++i){
+                holeIdx.push_back(polygon.size());
+                auto split = holeIdx.begin();
+                split++;
+                // std::cout << "split: " << *split << std::endl;
+                // int holesegment;
+                for(size_t i = 0; i < polygon.size(); ++i){
+                    if(i+1 == *split){
+                        split++;
+                        continue;
+                    }
 
                     // First check if one x component is on the right
                     if(polygon[i].x > x_+width_ || polygon[i+1].x > x_+width_){
@@ -122,7 +132,7 @@ void QuadTree::markAsExternal(  const std::vector<quadPoint> &polygon,
         }
     } else {
         for(auto &n : nodes){
-            n.markAsExternal(polygon, min, max);
+            n.markAsExternal(polygon, holeIdx, min, max);
         }
     }
 
@@ -131,8 +141,6 @@ void QuadTree::markAsExternal(  const std::vector<quadPoint> &polygon,
 bool QuadTree::insertSegment(quadPoint a, quadPoint b){
 
     bool doesIntersect = segmentIntersectsCell(a,b);
-    // std::cout << "intersects: " << doesIntersect << std::endl;
-    // std::cout << " " << std::endl;
     if( doesIntersect ){
         if( !QuadTree::maxDepth() ){
             // Create new leafs.
@@ -156,11 +164,6 @@ bool QuadTree::insertSegment(quadPoint a, quadPoint b){
 bool QuadTree::segmentIntersectsCell(quadPoint a, quadPoint b){
     // Check if line intersects cells x-axis shadow
 
-    // std::cout << "cell x: " << x_ << " y_: " << y_ << " width_: " << width_ << std::endl;
-    // std::cout << "A x: " << a.x << " y: " << a.y << std::endl;
-    // std::cout << "B x: " << b.x << " y: " << b.y << std::endl;
-
-
     if(a.x > x_+width_ && b.x > x_+width_) return false;
     if(a.y > y_+width_ && b.y > y_+width_) return false;
     if(a.x < x_ && b.x < x_) return false;
@@ -179,183 +182,6 @@ bool QuadTree::segmentIntersectsCell(quadPoint a, quadPoint b){
     if( x_slope*(y_) + y_slope*(x_) +  m > 0 != topleftSign ) return true;
 
     // All corner points lie on the same side of the line
-    return false;
-}
-
-
-bool QuadTree::insertBoundary(Polygon polygon){
-
-    Polygon cell;
-    cell.push_back( Point(x_,          y_) );
-    cell.push_back( Point(x_ + width_, y_) );
-    cell.push_back( Point(x_ + width_, y_ + width_) );
-    cell.push_back( Point(x_,          y_+width_) );
-
-
-    // check to see if polygon is contained completely by the cell
-    if(QuadTree::polygonCompletelyWithinCell(polygon)){
-        if( !QuadTree::maxDepth() ){
-            // Create new leafs.
-            QuadTree::createSubNodesAndInherit();
-            for(auto &n : nodes){
-                n.insertBoundary(polygon);
-            }
-        } else {
-            cellType_ = Boundary;
-        }
-    }
-
-
-    if(cellType_ == Parent){
-
-        // This cell hasn't been processed
-        bool intersect = CGAL::do_intersect(polygon, cell);
-        if(intersect){
-
-
-            // need to check if cell completely inside polygon
-            bool inside = false;
-            bool outside = false;
-            bool edge = false;
-            for (size_t i = 0; i < cell.size(); i++) {
-                auto bounded = CGAL::bounded_side_2(polygon.vertices_begin(), polygon.vertices_end(), cell[i], K());
-
-                if(bounded == CGAL::ON_BOUNDED_SIDE){
-                    // std::cout << " is inside the polygon.\n";
-                    inside = true;
-                } else if(bounded == CGAL::ON_BOUNDARY){
-                    // std::cout << " The polygon and cells edges touch.\n";
-                    edge = true;
-                } else {
-                    // std::cout << " is outside the polygon.\n";
-                    outside = true;
-                }
-            }
-
-            if(inside && outside || edge || (outside && !inside && !edge) ){
-                // The boundary travels through the cell.
-                // if the cell isn't a smallest possible size or biggest depth split it.
-                if( !QuadTree::maxDepth() ){
-                    // Create new leafs.
-                    QuadTree::createSubNodesAndInherit();
-                    for(auto &n : nodes){
-                        n.insertBoundary(polygon);
-                    }
-                } else {
-                    cellType_ = Boundary;
-                }
-            } else if(inside){
-                cellType_ = Interior;
-            } else {
-                cellType_ = Exterior;
-            }
-
-        } else {
-            // std::cout << "does not intersect" << std::endl;
-            cellType_ = Exterior;
-            return false;
-        }
-    }
-    return true;
-}
-
-
-void QuadTree::insertHole(Polygon polygon){
-
-    // Check to see if exterior node.
-    // check to see if polygon is contained completely by the cell
-    if(QuadTree::polygonCompletelyWithinCell(polygon)){
-        if(cellType_ == Parent){
-            for(auto &n : nodes){
-                n.insertHole(polygon);
-            }
-        } else if( !QuadTree::maxDepth() && cellType_ == Interior ){
-            // Create new leafs.
-            QuadTree::createSubNodesAndInherit(Interior);
-            for(auto &n : nodes){
-                n.insertHole(polygon);
-            }
-        } else {
-            cellType_ = Boundary;
-        }
-        return;
-    }
-
-    Polygon cell;
-    cell.push_back( Point(x_,          y_) );
-    cell.push_back( Point(x_ + width_, y_) );
-    cell.push_back( Point(x_ + width_, y_ + width_) );
-    cell.push_back( Point(x_,          y_+width_) );
-
-    bool intersect = CGAL::do_intersect(polygon, cell);
-
-    if(intersect){
-        // std::cout << "intersect: " << cellType << std::endl;
-        if(cellType_ == Interior){
-            // std::cout << "Interior" << std::endl;
-            // need to check if cell completely inside polygon
-            bool inside = false;
-            bool outside = false;
-            bool edge = false;
-            for (size_t i = 0; i < cell.size(); i++) {
-                auto bounded = CGAL::bounded_side_2(polygon.vertices_begin(), polygon.vertices_end(), cell[i], K());
-
-                if(bounded == CGAL::ON_BOUNDED_SIDE){
-                    // std::cout << " is inside the polygon.\n";
-                    inside = true;
-                } else if(bounded == CGAL::ON_BOUNDARY){
-                    // std::cout << " The polygon and cells edges touch.\n";
-                    edge = true;
-                } else {
-                    // std::cout << " is outside the polygon.\n";
-                    outside = true;
-                }
-            }
-
-            if(inside && outside || edge || (outside && !inside && !edge) ){
-                // The boundary travels through the cell.
-                // if the cell isn't a smallest possible size or biggest depth split it.
-                if(cellType_ == Parent){
-                    for(auto &n : nodes){
-                        n.insertHole(polygon);
-                    }
-                }
-                else if( !QuadTree::maxDepth() ){
-                    // Create new leafs.
-                    QuadTree::createSubNodesAndInherit(Interior);
-                    for(auto &n : nodes){
-                        n.insertHole(polygon);
-                    }
-                } else {
-                    cellType_ = Boundary;
-                }
-            } else if(inside){
-                cellType_ = Hole;
-            } else {
-                cellType_ = Interior;
-            }
-        } else if(cellType_ == Parent){
-            for(auto &n : nodes){
-                n.insertHole(polygon);
-            }
-        }
-    }
-}
-
-bool QuadTree::polygonCompletelyWithinCell(Polygon &polygon){
-    auto left = CGAL::left_vertex_2(polygon.vertices_begin(), polygon.vertices_end(), K());
-    auto right = CGAL::right_vertex_2(polygon.vertices_begin(), polygon.vertices_end(), K());
-    auto top = CGAL::top_vertex_2(polygon.vertices_begin(), polygon.vertices_end(), K());
-    auto bottom = CGAL::bottom_vertex_2(polygon.vertices_begin(), polygon.vertices_end(), K());
-    if( (*left)[0] >= x_) {
-        if( (*right)[0] <= x_ + width_) {
-            if( (*bottom)[1] >= y_) {
-                if( (*top)[1] <= y_ + width_) {
-                    return true;
-                }
-            }
-        }
-    }
     return false;
 }
 

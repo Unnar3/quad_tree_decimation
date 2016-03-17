@@ -1,11 +1,12 @@
 #include <pcl/common/transforms.h>
 #include <algorithm>
 #include <pcl/common/common.h>
+#include <pcl/io/pcd_io.h>
 
 namespace QTD{
 
 template <typename PointT>
-void QuadTreePCL<PointT>::insertSegments(typename pcl::PointCloud<PointT>::Ptr boundary){
+void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr boundary){
     // Convert to cgal polygon
     if(boundary->size() == 0) return;
 
@@ -31,22 +32,58 @@ void QuadTreePCL<PointT>::insertSegments(typename pcl::PointCloud<PointT>::Ptr b
         // initialize the quadtree
         quad = QuadTree(1,width,x,y);
         // quad = QuadTree(1,5,0,0);
-        quad.setMaxWidth(0.1);
+        quad.setMaxWidth(0.05);
         boundaryCells.resize(std::ceil(5.0/0.1));
         inserted_ = true;
     }
 
-    std::vector<QTD::quadPoint> qtd_boundary(boundary->size()+1);
+
+    std::vector<int> holeIdx;
+    QuadTreePCL<PointT>::holeCheck(boundary, holeIdx, 0.1);
+
+
+    std::vector<QTD::quadPoint> qtd_boundary;
+
+
+
+    pcl::PCDWriter writer;
+    std::string save_path = "/home/unnar/catkin_ws/src/quad_tree_decimation_examples/data/test_cloud_mesh/";
+
     QTD::quadPoint qtd_min(min.x, min.y);
     QTD::quadPoint qtd_max(max.x, max.y);
-    QTD::quadPoint lastp(boundary->at(boundary->size()-1).x, boundary->at(boundary->size()-1).y);
-    qtd_boundary[0] = QTD::quadPoint(boundary->at(boundary->size()-1).x, boundary->at(boundary->size()-1).y);
-    for(size_t i = 0; i < boundary->size(); ++i){
-        qtd_boundary[i+1] = QTD::quadPoint(boundary->at(i).x, boundary->at(i).y);
-        quad.insertSegment( qtd_boundary[i], qtd_boundary[i+1] );
+
+    // start by filling quadpoints.
+    int start = 0;
+    auto split = holeIdx.begin();
+    int inc = 0;
+    std::vector<int> polygonstartIdx;
+    polygonstartIdx.push_back(0);
+    for(size_t i = 0; i < holeIdx.size(); ++i){
+        int begin;
+
+        if(i == 0) begin = 0;
+        else begin = holeIdx[i-1];
+
+        for(size_t j = begin; j < holeIdx[i]; ++j){
+            qtd_boundary.push_back(QTD::quadPoint(boundary->at(j).x, boundary->at(j).y));
+        }
+        qtd_boundary.push_back(QTD::quadPoint(boundary->at(begin).x, boundary->at(begin).y));
+        polygonstartIdx.push_back(qtd_boundary.size());
     }
 
-    quad.markAsExternal(qtd_boundary, qtd_min, qtd_max);
+    auto startNew = polygonstartIdx.begin();
+    startNew++;
+    for(size_t i = 0; i < qtd_boundary.size()-1; ++i){
+
+        if(i+1 != *startNew)
+            quad.insertSegment( qtd_boundary[i], qtd_boundary[i+1] );
+        else{
+            if(*startNew != polygonstartIdx.back())
+                startNew++;
+        }
+    }
+
+    quad.markAsExternal(qtd_boundary, polygonstartIdx, qtd_min, qtd_max);
 
     QuadTreePCL<PointT>::rotateFromAxis<PointT>(boundary);
 
@@ -54,62 +91,43 @@ void QuadTreePCL<PointT>::insertSegments(typename pcl::PointCloud<PointT>::Ptr b
 
 
 template <typename PointT>
-void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr boundary){
-    // Convert to cgal polygon
-    if(boundary->size() == 0) return;
+void QuadTreePCL<PointT>::holeCheck(const typename pcl::PointCloud<PointT>::Ptr boundary, std::vector<int> &splits, float dist){
+    // Do a very simple distance check and return indices to first point after split.
 
-    QuadTreePCL<PointT>::rotateToAxis(boundary);
-    PointT min, max;
-    pcl::getMinMax3D(*boundary, min, max);
+    float distance_threshold = dist*dist;
 
-    std::cout << "min: " << min << std::endl;
-    std::cout << "max: " << max << std::endl;
+    // Returns true if the distance between a and b is less than dist_threshold.
+    // return |b-a| < dist_threshold.
+    auto squared_point_distance = [distance_threshold](PointT a, PointT b){
+        return std::pow((b.x-a.x),2) + std::pow((b.y-a.y),2) < distance_threshold;
+    };
 
-    if(!inserted_){
-        // Determin the inital size of the quadtree
-        z_ = boundary->points[0].z;
-        float x = QuadTreePCL<PointT>::roundDown(min.x);
-        float y = QuadTreePCL<PointT>::roundDown(min.y);
-        float width = std::max(QuadTreePCL<PointT>::roundUp(max.x - x), QuadTreePCL<PointT>::roundUp(max.y - y));
+    int start = 0;
+    bool has_left_origin = false;
+    for(size_t i = 0; i < boundary->size()-1; ++i){
 
-        std::cout << "x: " << x << std::endl;
-        std::cout << "y: " << y << std::endl;
-        std::cout << "width: " << width << std::endl;
+        if( i == start ) continue;
 
-        // initialize the quadtree
-        quad = QuadTree(1,width,x,y);
-        quad.setMaxWidth(0.1);
-    }
-
-    Polygon polygon;
-    for (size_t i = 0; i < boundary->size(); i++) {
-        polygon.push_back(Point(boundary->points[i].x, boundary->points[i].y));
-    }
-    std::vector<Polygon> polygons;
-    // if(!polygon.is_simple()){
-    std::cout << "Polygon isn't simple, returning" << std::endl;
-    QuadTreePCL<PointT>::makePolygonSimple(polygon, polygons, 0.05);
-    polygon = polygons[0];
-        // return;
-    // }
-    CGAL::Orientation orientation = polygon.orientation();
-    if(orientation == CGAL::NEGATIVE){
-        std::cout << "need to invert polygon" << std::endl;
-        std::reverse(polygon.vertices_begin(), polygon.vertices_end());
-    }
-    std::cout << "inserting" << std::endl;
-    quad.insertBoundary(polygon);
-    for(size_t i = 1; i < polygons.size(); ++i){
-        orientation = polygons[i].orientation();
-        if(orientation == CGAL::NEGATIVE){
-            std::cout << "need to invert polygon" << std::endl;
-            std::reverse(polygons[i].vertices_begin(), polygons[i].vertices_end());
+        else if(!has_left_origin){
+            if( !squared_point_distance(boundary->at(start), boundary->at(i)) ){
+                has_left_origin = true;
+            }
+        } else {
+            // Check if distance between current and next is to large
+            if( !squared_point_distance(boundary->at(i), boundary->at(i+1)) ){
+                // Step to big, still need to check if circle has been closed => close to starting point
+                if( squared_point_distance(boundary->at(i), boundary->at(start)) ){
+                    // Can close circle.
+                    splits.push_back(i+1);
+                    start = i+1;
+                    has_left_origin = false;
+                }
+            }
         }
-        quad.insertHole(polygons[i]);
     }
-    std::cout << "inserted" << std::endl;
-    inserted_ = true;
+    splits.push_back(boundary->size());
 }
+
 
 template <typename PointT>
 template <typename T>
@@ -221,122 +239,6 @@ void QuadTreePCL<PointT>::rotateFromAxis(typename pcl::PointCloud<T>::Ptr cloud)
 
 }
 
-template <typename PointT>
-bool QuadTreePCL<PointT>::makePolygonSimple(Polygon &polygon, std::vector<Polygon> &polygons, float distance){
-
-
-    // Idea:
-    // find the most left/right/top/bottom vertex and start from there, then we are sure that
-    // we start with the external polygon.
-
-    float dist_threshold = distance*distance;
-
-    // Returns true if the distance between a and b is less than dist_threshold.
-    // return |b-a| < dist_threshold.
-    auto squared_point_distance = [](Point a, Point b, float dist_threshold){
-        return std::pow((b[0]-a[0]),2) + std::pow((b[1]-a[1]),2) < dist_threshold;
-    };
-
-    int start = 0;
-    int stop = polygon.size();
-    bool distance_greater = false;
-
-    while(start != stop){
-        Polygon poly;
-        distance_greater = false;
-        for(int i = start; i < stop; ++i){
-            std::cout << "start: " << start << " stop: " << stop << " i: " << i << std::endl;
-            if(i == stop - 1){
-                // Have traveled the entire polygon. STOP
-                poly.push_back(polygon[i]);
-                polygons.push_back(poly);
-                start = stop;
-                break;
-            }
-            bool close_to_origin = squared_point_distance(polygon[i], polygon[start], dist_threshold);
-
-            // Need to check if we have actually moved further than dist_threshold away from origin.
-            if( !distance_greater && !close_to_origin ){
-                // We have not moved far enough from origin before this check.
-                // The distance to origin is greater than dist_threshold.
-                distance_greater = true;
-                poly.push_back(polygon[i]);
-            }
-
-            // Check if point is very close to the starting point.
-            else if(distance_greater && close_to_origin ){
-                // Possible that we have reached a hole
-                poly.push_back(polygon[i]);
-                // Check if the next point in polygon (i+1) is inside poly
-                // Does not work properly, needs better logic.
-                // if(poly.has_on_bounded_side(polygon[i+1])){
-                //     // The next point is inside poly.
-                //     // i+1 is the start of a hole
-                //     polygons.push_back(poly);
-                //     start = i+1;
-                //     break;
-                // }
-
-                // Simple distance check.
-                if( !squared_point_distance(polygon[i], polygon[i+1], dist_threshold) ){
-                    // Points to far away from each other, was in a hole, probably in external now.
-                    polygons.push_back(poly);
-                    start = i+1;
-                    break;
-                }
-
-            } else {
-                // Just a normal point push it back.
-                poly.push_back(polygon[i]);
-            }
-        }
-    }
-
-    // Need to loop over polygons and find polygon with max size and make that external.
-    if(polygons.size() > 0){
-        float max = 0;
-        int max_idx = 0;
-        for(int i = 0; i < polygons.size(); ++i){
-            float tmp_max = std::abs(polygons[i].area());
-            if( tmp_max > max ){
-                max_idx = 0;
-                max = tmp_max;
-            }
-        }
-        if(max_idx != 0){
-            std::cout << "swapping" << std::endl;
-            std::swap(polygons[0], polygons[max_idx]);
-        }
-    }
-
-    // Very stupid test based on distance.
-    // int last_idx = 0;
-    // for(size_t i = 0; i < polygon.size() - 1; ++i){
-    //     if( !squared_point_distance(polygon[i], polygon[i+1]) ){
-    //         std::cout << "distance to great i: " << i << std::endl;
-    //         std::cout << "point a: " << polygon[i] << std::endl;
-    //         std::cout << "point b: " << polygon[i+1] << std::endl;
-    //         if(squared_point_distance(polygon[i], polygon[last_idx])){
-    //             // we have closed the polygon
-    //             std::cout << "close to last" << std::endl;
-    //             Polygon polygon_tmp;
-    //             for(size_t j = last_idx; j < i+1; ++j){
-    //                 polygon_tmp.push_back(polygon[j]);
-    //             }
-    //             polygons.push_back(polygon_tmp);
-    //             Polygon hole_tmp;
-    //             for(size_t j = i+1; j < polygon.size(); ++j){
-    //                 hole_tmp.push_back(polygon[j]);
-    //             }
-    //             polygons.push_back(hole_tmp);
-    //         }
-    //     }
-    // }
-    // if(polygons.size() == 0){
-    //     polygons.push_back(polygon);
-    // }
-}
-
 
 template <typename PointT>
 template <typename T>
@@ -354,23 +256,9 @@ void QuadTreePCL<PointT>::createTexture(
 
     image = cv::Mat::zeros(r*quad.width(), r*quad.width(), CV_8UC3); // RGB image
 
-    // for(int i  = 0; i < image.rows; ++i){
-    //     for(int j  = 0; j < image.cols; ++j){
-    //         image.at<cv::Vec3b>(i, j)[0] = 255;
-    //         image.at<cv::Vec3b>(i, j)[1] = 0;
-    //         image.at<cv::Vec3b>(i, j)[2] = 255;
-    //     }
-    // }
-
-    std::cout << "image, rows: " << image.rows <<", cols: " << image.cols << std::endl;
-    std::cout << "quad width: " << quad.width() << std::endl;
-
     for(auto p : texture_tmp->points){
-        // vertex_texture[i][0] = (p.x - quad.x())/quad.width();
-        // vertex_texture[i][1] = (p.y - quad.y())/quad.width();
         int x = std::floor( (p.x - quad.x())/quad.width() * image.cols);
         int y = std::floor( (p.y - quad.y())/quad.width() * image.rows);
-        // std::cout << "x: " << x << ", y: " << y << std::endl;
         image.at<cv::Vec3b>(image.rows - y - 1, x)[0] = p.b;
         image.at<cv::Vec3b>(image.rows - y - 1, x)[1] = p.g;
         image.at<cv::Vec3b>(image.rows - y - 1, x)[2] = p.r;

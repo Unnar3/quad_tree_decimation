@@ -25,33 +25,30 @@ rosbuild_prepare_qt4(QtCore QtXml)
 #	sensor_msgs
 #)
 
-find_package(CGAL REQUIRED COMPONENTS Core)
-
 catkin_package(
-	DEPENDS cgal gmp
+	DEPENDS
 	CATKIN_DEPENDS roscpp message_runtime qt_build ransac_primitives ProbabilisticPrimitiveRefinement
 	INCLUDE_DIRS include
-	LIBRARIES qtd_plane_extraction qtd_utils
+	LIBRARIES qtd_plane_extraction qtd_utils qtd_quad_tree qtd_quad_tree_pcl
 )
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${CGAL_INCLUDE_DIRS})
-include(${CGAL_USE_FILE})
+include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 add_library(qtd_plane_extraction src/plane_extraction.cpp)
 target_link_libraries(qtd_plane_extraction ${catkin_LIBRARIES})
 
 add_library(qtd_quad_tree src/quad_tree.cpp)
-target_link_libraries(qtd_quad_tree ${catkin_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} gmp)
+target_link_libraries(qtd_quad_tree ${catkin_LIBRARIES})
 
 add_library(qtd_quad_tree_pcl src/quad_tree_pcl.cpp)
-target_link_libraries(qtd_quad_tree_pcl qtd_quad_tree ${catkin_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} gmp)
+target_link_libraries(qtd_quad_tree_pcl qtd_quad_tree ${catkin_LIBRARIES})
 
 add_library(qtd_utils src/utils.cpp)
 target_link_libraries(qtd_utils ${catkin_LIBRARIES})
 
 ############################# INSTALL TARGETS
 
-install(TARGETS qtd_plane_extraction qtd_utils
+install(TARGETS qtd_plane_extraction qtd_utils qtd_quad_tree qtd_quad_tree_pcl
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

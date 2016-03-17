@@ -7,16 +7,8 @@
 #include <pcl/for_each_type.h>
 #include <pcl/Vertices.h>
 
-// CGAL
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Polygon_2.h>
-
 
 namespace QTD{
-
-typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-typedef K::Point_2 Point;
-typedef CGAL::Polygon_2<K>                                  Polygon;
 
 struct quadPoint{
     float x;
@@ -72,30 +64,18 @@ public:
 
     ~QuadTree(){}
 
-    // NOTE
-    // This method is very inefficient.
-    // It is checking way to many times if a point falls within the polygon
-    // Makes more sense to send in a single line segment from the polygon and
-    // then check for the cells if the line segment crosses it.
-    // Afterwards check if remaining cells are inside or outside.
-    //
-    bool insertBoundary(Polygon polygon);
-
-
+    bool insertSegment(quadPoint a, quadPoint b);
     void markAsExternal(const std::vector<quadPoint> &polygon,
+                        const std::vector<int> &holeIdx,
                         const quadPoint &min,
                         const quadPoint &max);
-    bool insertSegment(quadPoint a, quadPoint b);
-    void insertHole(Polygon polygon);
+    // void insertHole(Polygon polygon);
     void extractCells(std::vector<QuadTree::Cell> &cells);
 
     // Determines if color information will be used in decemation.
     void useColor(bool use_color){ use_color_ = use_color; }
     void setMaxLevel(int level){ max_level_ = level; }
     void setMaxWidth(float width){ max_width_ = width; }
-    // void setX(float x){ x_ = x; }
-    // void setY(float y){ y_ = y; }
-    // void setWidth(float width){ width_ = width; }
     float x(){ return x_; }
     float y(){ return y_; }
     float width(){ return width_; }
@@ -106,7 +86,6 @@ private:
     bool maxDepth();
     void createSubNodesAndInherit();
     void createSubNodesAndInherit(CellType type);
-    bool polygonCompletelyWithinCell(Polygon &polygon);
     bool segmentIntersectsCell(quadPoint a, quadPoint b);
 };
 
