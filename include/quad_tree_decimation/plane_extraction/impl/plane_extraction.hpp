@@ -1,8 +1,28 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/filters/project_inliers.h>
 #include <pcl/filters/extract_indices.h>
 
 namespace QTD{
+
+
+    template <typename T>
+    void planeExtraction::projectToPlane(std::vector<typename pcl::PointCloud<T>::Ptr> &clouds, const std::vector<ModelCoeffT::Ptr> &coeffs){
+        for(size_t i = 0; i < clouds.size(); ++i){
+            planeExtraction::projectToPlane<T>(clouds[i], coeffs[i]);
+        }
+    }
+
+    template <typename T>
+    void planeExtraction::projectToPlane(typename pcl::PointCloud<T>::Ptr cloud, const ModelCoeffT::Ptr coeff){
+        // Create the projection object
+		typename pcl::ProjectInliers<T> proj;
+		proj.setModelType(pcl::SACMODEL_PLANE);
+	    proj.setInputCloud(cloud);
+	    proj.setModelCoefficients(coeff);
+	    proj.filter(*cloud);
+    }
+
 
     template<typename PT>
     void planeExtraction::ecClustering(  const typename pcl::PointCloud<PT>::Ptr         cloud,

@@ -58,6 +58,12 @@ namespace QTD{
             params_primitives_set_ = true;
         }
 
+        template <typename T>
+        void projectToPlane(std::vector<typename pcl::PointCloud<T>::Ptr> &clouds, const std::vector<ModelCoeffT::Ptr> &coeffs);
+
+        template <typename T>
+        void projectToPlane(typename pcl::PointCloud<T>::Ptr cloud, const ModelCoeffT::Ptr coeff);
+
     private:
 
         void checkIfParamsHaveBeenSet();
