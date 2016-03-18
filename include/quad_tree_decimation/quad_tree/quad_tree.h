@@ -19,6 +19,20 @@ struct quadPoint{
         x = x_;
         y = y_;
     }
+
+    inline bool operator==(quadPoint a) {
+       if (a.x==x && a.y== y)
+          return true;
+       else
+          return false;
+    }
+
+    inline bool operator!=(quadPoint a) {
+       if (a.x!=x || a.y!= y)
+          return true;
+       else
+          return false;
+    }
 };
 
 class QuadTree{
@@ -40,17 +54,16 @@ private:
     float max_width_;
     int max_level_;
     int level_;
-    bool use_color_;
     bool is_leaf_;
-    bool is_boundary_;
     CellType cellType_;
     float x_, y_;
     float width_;
+    std::vector<quadPoint> intersectionPoints_;
+    std::vector<quadPoint> cornerPoints_;
     std::vector<QuadTree> nodes;
 
 private:
     int level(){ return level_; }
-    bool useColor(){ return use_color_;}
     bool isLeaf(){ return is_leaf_; }
     CellType cellType(){ return cellType_; }
 
@@ -71,9 +84,10 @@ public:
                         const quadPoint &max);
     // void insertHole(Polygon polygon);
     void extractCells(std::vector<QuadTree::Cell> &cells);
+    void extractTriangles(std::vector<quadPoint> &cells, std::vector<std::vector<int> > &indices);
+    void extractBoundaryPoints(std::vector<quadPoint> &points);
 
     // Determines if color information will be used in decemation.
-    void useColor(bool use_color){ use_color_ = use_color; }
     void setMaxLevel(int level){ max_level_ = level; }
     void setMaxWidth(float width){ max_width_ = width; }
     float x(){ return x_; }
@@ -87,6 +101,9 @@ private:
     void createSubNodesAndInherit();
     void createSubNodesAndInherit(CellType type);
     bool segmentIntersectsCell(quadPoint a, quadPoint b);
+    bool lineOnCellIntersections(quadPoint a, quadPoint b);
+    bool lineOnLineIntersectionPoint(quadPoint lstart, quadPoint lend, quadPoint cstart, quadPoint cend, quadPoint &out);
+    bool rayTraycing(quadPoint p, float width, const std::vector<quadPoint> &polygon, const std::vector<int> &holeIdx);
 };
 
 }

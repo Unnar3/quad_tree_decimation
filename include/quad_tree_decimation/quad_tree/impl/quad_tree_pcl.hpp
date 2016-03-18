@@ -2,8 +2,25 @@
 #include <algorithm>
 #include <pcl/common/common.h>
 #include <pcl/io/pcd_io.h>
+#include <random>
 
 namespace QTD{
+
+template <typename PointT>
+void QuadTreePCL<PointT>::createBoundary(typename pcl::PointCloud<PointT>::Ptr boundary){
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution(0.0,0.01);
+
+    std::vector<quadPoint> points;
+    quad.extractBoundaryPoints(points);
+    for(auto p : points){
+        PointT pc;
+        pc.x = p.x;
+        pc.y = p.y;
+        pc.z = z_ + distribution(generator);
+        boundary->push_back(pc);
+    }
+}
 
 template <typename PointT>
 void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr boundary){
@@ -14,8 +31,6 @@ void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr b
     PointT min, max;
     pcl::getMinMax3D(*boundary, min, max);
 
-    std::cout << "min: " << min << std::endl;
-    std::cout << "max: " << max << std::endl;
     std::vector<std::vector<int> > boundaryCells;
 
     if(!inserted_){
@@ -24,10 +39,6 @@ void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr b
         float x = QuadTreePCL<PointT>::roundDown(min.x);
         float y = QuadTreePCL<PointT>::roundDown(min.y);
         float width = std::max(QuadTreePCL<PointT>::roundUp(max.x - x), QuadTreePCL<PointT>::roundUp(max.y - y));
-
-        std::cout << "x: " << x << std::endl;
-        std::cout << "y: " << y << std::endl;
-        std::cout << "width: " << width << std::endl;
 
         // initialize the quadtree
         quad = QuadTree(1,width,x,y);
@@ -83,6 +94,7 @@ void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr b
         }
     }
 
+    polygonstartIdx.push_back(qtd_boundary.size());
     quad.markAsExternal(qtd_boundary, polygonstartIdx, qtd_min, qtd_max);
 
     QuadTreePCL<PointT>::rotateFromAxis<PointT>(boundary);
@@ -126,6 +138,41 @@ void QuadTreePCL<PointT>::holeCheck(const typename pcl::PointCloud<PointT>::Ptr 
         }
     }
     splits.push_back(boundary->size());
+}
+
+template <typename PointT>
+template <typename T>
+void QuadTreePCL<PointT>::createMeshNew(typename pcl::PointCloud<T>::Ptr cloud, std::vector< pcl::Vertices > &vertices){
+
+
+    int pointCount = cloud->size();
+
+    std::vector<std::vector<int>> vert;
+    std::vector<quadPoint> points;
+    quad.extractTriangles(points, vert);
+
+    std::cout << "points size: "<< points.size() << std::endl;
+    std::cout << "vert size: " << vert.size() << std::endl;
+
+    T p;
+    p.z = z_;
+    for(auto point : points){
+        p.x = point.x;
+        p.y = point.y;
+        cloud->push_back(p);
+    }
+
+    pcl::Vertices v;
+    v.vertices.resize(3);
+    for(auto i : vert){
+        v.vertices[0] = pointCount + i[0];
+        v.vertices[1] = pointCount + i[1];
+        v.vertices[2] = pointCount + i[2];
+        vertices.push_back(v);
+    }
+
+    QuadTreePCL<PointT>::rotateFromAxis<T>(cloud);
+
 }
 
 
