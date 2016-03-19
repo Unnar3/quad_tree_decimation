@@ -165,25 +165,27 @@ bool QuadTree::lineOnCellIntersections(quadPoint a, quadPoint b){
     bool ainsert = false, binsert = false;
     int count_inside = 0;
     if(a.x >= x_ && a.x <= x_+width_ && a.y >= y_ && a.y <= y_+width_){
-        if(intersectionPoints_.size() != 0){
-            insertPoints(a, intersectionPoints_);
-        } else {
-            ainsert = true;
-        }
+        // if(intersectionPoints_.size() != 0){
+        //     insertPoints(a, intersectionPoints_);
+        // } else {
+        //     ainsert = true;
+        // }
         // if(intersectionPoints_.back() != a)
         //     intersectionPoints_.push_back(a);
         count_inside++;
     }
     if(b.x >= x_ && b.x <= x_+width_ && b.y >= y_ && b.y <= y_+width_){
-        if(intersectionPoints_.size() != 0){
-            insertPoints(b, intersectionPoints_);
-        } else {
-            binsert = true;
-        }
+        // if(intersectionPoints_.size() != 0){
+        //     insertPoints(b, intersectionPoints_);
+        // } else {
+        //     binsert = true;
+        // }
         // if(intersectionPoints_.back() != b)
         //     intersectionPoints_.push_back(b);
         count_inside++;
     }
+    if(count_inside == 2) return true;
+
     count_inside_before = count_inside;
     std::vector<quadPoint> dafuck;
     quadPoint cstart, cend, out;
@@ -238,14 +240,14 @@ bool QuadTree::lineOnCellIntersections(quadPoint a, quadPoint b){
     }
     dafuck.push_back(out);
 
-    if(ainsert){
-        insertPoints(a, intersectionPoints_);
-        count_inside++;
-    }
-    if(binsert){
-        insertPoints(b, intersectionPoints_);
-        count_inside++;
-    }
+    // if(ainsert){
+    //     insertPoints(a, intersectionPoints_);
+    //     count_inside++;
+    // }
+    // if(binsert){
+    //     insertPoints(b, intersectionPoints_);
+    //     count_inside++;
+    // }
 
     if(count_inside < 2){
         std::cout << "before: " << count_inside_before << std::endl;
@@ -349,6 +351,7 @@ void QuadTree::extractBoundaryPoints(std::vector<quadPoint> &points){
     }
 }
 
+// Bad code, way to much duplicate code, need to clean up.
 void QuadTree::extractTriangles(std::vector<quadPoint> &cells, std::vector<std::vector<int>> &vertices){
     if(is_leaf_){
         if(cellType_ == Interior){
@@ -372,41 +375,39 @@ void QuadTree::extractTriangles(std::vector<quadPoint> &cells, std::vector<std::
 
         else if(cellType_ == Boundary){
 
-            auto pointDist = [](quadPoint a, quadPoint b){
-                return std::sqrt(std::pow(b.x-a.x,2) + std::pow(b.y-a.y,2));
-            };
-
-            auto pointAngleX = [](quadPoint a, quadPoint b){
+            auto pointAngle = [](quadPoint a, quadPoint b){
                 return atan2(b.y-a.y,b.x-a.x);
             };
 
-            auto pointAngleY = [](quadPoint a, quadPoint b){
-                return atan2(b.x-a.x,b.y-a.y);
-            };
+            if (cornerPoints_.size() != 4){
 
-            if(cornerPoints_.size() == 2){
-                // find average corner point
-                quadPoint avePoint((cornerPoints_[0].x + cornerPoints_[1].x) / 2.0, (cornerPoints_[0].y + cornerPoints_[1].y) / 2.0);
-
+                int count = 0;
+                float averageX = 0;
+                float averageY = 0;
+                for(auto p : cornerPoints_){
+                    averageX += p.x;
+                    averageY += p.y;
+                    count++;
+                }
+                for(auto p : intersectionPoints_){
+                    averageX += p.x;
+                    averageY += p.y;
+                    count++;
+                }
                 std::vector<std::pair<quadPoint, float>> itmp;
-                itmp.reserve(intersectionPoints_.size());
-                for(auto i : intersectionPoints_){
-                    if(cornerPoints_[0].x == cornerPoints_[1].x){
-                        itmp.push_back(std::pair<quadPoint,float>(i,pointAngleX(avePoint, i)));
-                    } else {
-                        itmp.push_back(std::pair<quadPoint,float>(i,pointAngleY(avePoint, i)));
-                    }
+                itmp.reserve(intersectionPoints_.size() + cornerPoints_.size());
+                quadPoint average(averageX/count, averageY/count);
+                for(auto p : intersectionPoints_){
+                    itmp.push_back(std::pair<quadPoint,float>(p,pointAngle(average, p)));
                 }
-                for(auto i : cornerPoints_){
-                    if(cornerPoints_[0].x == cornerPoints_[1].x){
-                        itmp.push_back(std::pair<quadPoint,float>(i,pointAngleX(avePoint, i)));
-                    } else {
-                        itmp.push_back(std::pair<quadPoint,float>(i,pointAngleY(avePoint, i)));
-                    }
+                for(auto p : cornerPoints_){
+                    itmp.push_back(std::pair<quadPoint,float>(p,pointAngle(average, p)));
                 }
+
                 std::sort(itmp.begin(),itmp.end(), [](const std::pair<quadPoint,float> &left, const std::pair<quadPoint,float> &right) {
                     return left.second < right.second;
                 });
+
                 std::vector<int> vert(3);
                 for(int i = 1; i < itmp.size()-1; ++i){
                     vert[0] = cells.size() + 0;
@@ -417,37 +418,9 @@ void QuadTree::extractTriangles(std::vector<quadPoint> &cells, std::vector<std::
                 for(auto p : itmp){
                     cells.push_back(p.first);
                 }
+            }
 
-}
-
-            // } else if(cornerPoints_.size() == 1){
-            //     // find average corner point
-            //     quadPoint avePoint(cornerPoints_[0].x, cornerPoints_[0].y);
-            //
-            //     std::vector<std::pair<quadPoint, float>> itmp;
-            //     itmp.reserve(intersectionPoints_.size());
-            //     for(auto i : intersectionPoints_){
-            //         itmp.push_back(std::pair<quadPoint,float>(i,pointAngleX(avePoint, i)));
-            //     }
-            //     std::sort(itmp.begin(),itmp.end(), [](const std::pair<quadPoint,float> &left, const std::pair<quadPoint,float> &right) {
-            //         return left.second < right.second;
-            //     });
-            //
-            //     itmp.insert(itmp.begin(), std::pair<quadPoint, float>(avePoint, 0));
-            //     std::vector<int> vert(3);
-            //     for(int i = 1; i < itmp.size()-1; ++i){
-            //         vert[0] = cells.size() + 0;
-            //         vert[1] = cells.size() + i;
-            //         vert[2] = cells.size() + i+1;
-            //         vertices.push_back(vert);
-            //     }
-            //     for(auto p : itmp){
-            //         cells.push_back(p.first);
-            //     }
-            // }
-
-
-             else {
+            else {
                 std::vector<int> vert(3);
                 vert[0] = cells.size() + 0;
                 vert[1] = cells.size() + 1;
