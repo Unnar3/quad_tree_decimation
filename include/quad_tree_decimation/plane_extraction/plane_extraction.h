@@ -64,6 +64,9 @@ namespace QTD{
         template <typename T>
         void projectToPlane(typename pcl::PointCloud<T>::Ptr cloud, const ModelCoeffT::Ptr coeff);
 
+        template <typename T>
+        void mergePlanes(std::vector<typename pcl::PointCloud<T>::Ptr> &clouds, std::vector<ModelCoeffT::Ptr> &coeffs);
+
     private:
 
         void checkIfParamsHaveBeenSet();
@@ -136,6 +139,11 @@ namespace QTD{
                                     int & red,
                                     int & green,
                                     int & blue);
+
+        float normalAngleDifference(const ModelCoeffT::Ptr a, const ModelCoeffT::Ptr b);
+
+        template <typename Point>
+        bool boundingBoxIntersect(Point mina, Point maxa, Point minb, Point maxb);
 
     };
 }

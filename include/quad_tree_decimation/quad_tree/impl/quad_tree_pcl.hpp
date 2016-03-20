@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <pcl/common/common.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/kdtree/kdtree_flann.h>
 #include <random>
 
 namespace QTD{
@@ -41,7 +42,7 @@ void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr b
         float width = std::max(QuadTreePCL<PointT>::roundUp(max.x - x), QuadTreePCL<PointT>::roundUp(max.y - y));
 
         // initialize the quadtree
-        quad = QuadTree(1,width,x,y);
+        quad = QuadTree(1,std::ceil(std::max(max.x-std::floor(min.x), max.y-std::floor(min.y))),std::floor(min.x),std::floor(min.y));
         // quad = QuadTree(1,5,0,0);
         quad.setMaxWidth(0.05);
         boundaryCells.resize(std::ceil(5.0/0.1));
@@ -295,7 +296,7 @@ void QuadTreePCL<PointT>::createTexture(
         cv::Mat &image,
         std::vector<Eigen::Vector2f> &vertex_texture){
 
-    float r = 10;
+    float r = 100;
     typename pcl::PointCloud<T>::Ptr texture_tmp (new pcl::PointCloud<T>);
     typename pcl::PointCloud<T>::Ptr triangle_tmp (new pcl::PointCloud<T>);
     rotateToAxis(texture_cloud, texture_tmp);
@@ -303,13 +304,79 @@ void QuadTreePCL<PointT>::createTexture(
 
     image = cv::Mat::zeros(r*quad.width(), r*quad.width(), CV_8UC3); // RGB image
 
-    for(auto p : texture_tmp->points){
-        int x = std::floor( (p.x - quad.x())/quad.width() * image.cols);
-        int y = std::floor( (p.y - quad.y())/quad.width() * image.rows);
-        image.at<cv::Vec3b>(image.rows - y - 1, x)[0] = p.b;
-        image.at<cv::Vec3b>(image.rows - y - 1, x)[1] = p.g;
-        image.at<cv::Vec3b>(image.rows - y - 1, x)[2] = p.r;
+
+    pcl::KdTreeFLANN<T> kdtree;
+    kdtree.setInputCloud(texture_tmp);
+
+
+    float radius = 0.1;
+
+
+
+
+    T p;
+    p.z = texture_tmp->at(0).z;
+    for(size_t rows = 0; rows < image.rows; ++rows){
+        for(size_t cols = 0; cols < image.cols; ++cols){
+            // p.x = quad.x() + cols / r + 0.5/r;
+
+            p.x = cols*quad.width()/image.cols + quad.x() + 0.5/r;
+            p.y = quad.y()+quad.width() - rows*quad.width()/image.rows - 0.5/r;
+            // p.y =  - p.y;
+
+            // p.y = quad.y() + quad.width() - rows/r - 0.5/r;
+
+
+            // std::cout << "rect: xmin: " << quad.x() << " xmax " << quad.x()+quad.width();
+            // std::cout << " ymin: " << quad.y() << " ymax " << quad.y()+quad.width()<< std::endl;
+            // std::cout << "point: x " << p.x << " y " << p.y << std::endl;
+
+            int R = 0, G = 0 , B = 0;
+            std::vector<int> pointIdxRadiusSearch;
+            std::vector<float> pointRadiusSquaredDistance;
+
+            int size = kdtree.radiusSearch (p, 0.5/r, pointIdxRadiusSearch, pointRadiusSquaredDistance);
+
+            if(size == 0){
+                size = kdtree.radiusSearch (p, 1/r, pointIdxRadiusSearch, pointRadiusSquaredDistance);
+                if(size == 0){
+                    size = kdtree.radiusSearch (p, 2/r, pointIdxRadiusSearch, pointRadiusSquaredDistance);
+                    if(size == 0){
+                        size = kdtree.radiusSearch (p, 10/r, pointIdxRadiusSearch, pointRadiusSquaredDistance);
+                    }
+                }
+            }
+
+            if ( size > 0 )
+            {
+                // int Rtmp, Gtmp, Btmp;
+                for (size_t k = 0; k < pointIdxRadiusSearch.size (); ++k){
+                    R += texture_tmp->at(pointIdxRadiusSearch[k]).r;
+                    G += texture_tmp->at(pointIdxRadiusSearch[k]).g;
+                    B += texture_tmp->at(pointIdxRadiusSearch[k]).b;
+                    // if(Rtmp != 0 && Gtmp != 0 && Btmp != 0 ){
+                    //     R += Rtmp;
+                    //     G += Gtmp;
+                    //     B += Btmp;
+                    // }
+                }
+                R /= pointIdxRadiusSearch.size();
+                G /= pointIdxRadiusSearch.size();
+                B /= pointIdxRadiusSearch.size();
+            }
+            image.at<cv::Vec3b>(rows,cols)[0] = B;
+            image.at<cv::Vec3b>(rows,cols)[1] = G;
+            image.at<cv::Vec3b>(rows,cols)[2] = R;
+        }
     }
+
+    // for(auto p : texture_tmp->points){
+    //     int x = std::floor( (p.x - quad.x())/quad.width() * image.cols);
+    //     int y = std::floor( (p.y - quad.y())/quad.width() * image.rows);
+    //     image.at<cv::Vec3b>(image.rows - y - 1, x)[0] = p.b;
+    //     image.at<cv::Vec3b>(image.rows - y - 1, x)[1] = p.g;
+    //     image.at<cv::Vec3b>(image.rows - y - 1, x)[2] = p.r;
+    // }
 
     vertex_texture.resize(triangle_tmp->size());
     for(int i = 0; i < triangle_tmp->size(); ++i){

@@ -5,6 +5,86 @@
 
 namespace QTD{
 
+    float planeExtraction::normalAngleDifference(const ModelCoeffT::Ptr coeffa, const ModelCoeffT::Ptr coeffb){
+        Eigen::Vector3f a;
+        a << coeffa->values[0], coeffa->values[1], coeffa->values[2];
+        a.normalize();
+
+        Eigen::Vector3f b;
+        b << coeffb->values[0], coeffb->values[1], coeffb->values[2];
+        b.normalize();
+
+        return std::acos(a.dot(b));
+    }
+
+    template <typename Point>
+    bool planeExtraction::boundingBoxIntersect(Point mina, Point maxa, Point minb, Point maxb){
+        if(
+            ( (mina.x <= minb.x && minb.x <= maxa.x) || ( minb.x <= mina.x && mina.x <= maxb.x) ) &&
+            ( (mina.y <= minb.y && minb.y <= maxa.y) || ( minb.y <= mina.y && mina.y <= maxb.y) ) &&
+            ( (mina.z <= minb.z && minb.z <= maxa.z) || ( minb.z <= mina.z && mina.z <= maxb.z) )
+        ){
+            return true;
+        }
+        return false;
+    }
+
+
+    template <typename T>
+    void planeExtraction::mergePlanes(std::vector<typename pcl::PointCloud<T>::Ptr> &clouds, std::vector<ModelCoeffT::Ptr> &coeffs){
+
+
+
+        for(size_t i = 0; i < clouds.size()-1; ++i){
+            int j = i+1;
+            while(j < clouds.size()){
+            // for(size_t j = i; j < clouds->size(); ++j){
+                // Step 1: calculate the angle between the two planes.
+                if(planeExtraction::normalAngleDifference(coeffs[i], coeffs[j]) > M_PI/9 ){
+                    j++;
+                    continue;
+                }
+
+                // Step 2: Check if bounding boxes are close together.
+                // This is a horrible check since they are not axis aligned
+                // TODO: change.
+
+                T mina, maxa, minb, maxb;
+                pcl::getMinMax3D(*clouds[i], mina, maxa);
+                pcl::getMinMax3D(*clouds[j], minb, maxb);
+                if(!planeExtraction::boundingBoxIntersect<T>(mina, maxa, minb, maxb)){
+                    j++;
+                    continue;
+                }
+
+                // Step 3: Check distance between them by checking random points from the plane.
+                float plus = 0, minus = 0, minimum = 1;
+                for(auto p : clouds[j]->points){
+                    float tmp = pcl::pointToPlaneDistanceSigned(p, coeffs[i]->values[0], coeffs[i]->values[1], coeffs[i]->values[2], coeffs[i]->values[3]);
+                    if(tmp < 0){
+                        if(tmp < minus) minus = tmp;
+                    } else {
+                        if(tmp > plus) plus = tmp;
+                    }
+                    if(std::abs(tmp) < minimum) minimum = std::abs(tmp);
+                }
+                if( !((minus != 0 && plus != 0) || minimum < 0.05)  ){
+                // if((minus == 0 || plus == 0) && minimum > 0.05){
+                    j++;
+                    continue;
+                }
+
+                // Step 4: If all criterias are fullfilled, merge the planes.
+                if(clouds[j]->size() > clouds[i]->size()){
+                    *coeffs[i] = *coeffs[j];
+                }
+                *clouds[i] += *clouds[j];
+                clouds.erase(clouds.begin() + j);
+                coeffs.erase(coeffs.begin() + j);
+            }
+        }
+    }
+
 
     template <typename T>
     void planeExtraction::projectToPlane(std::vector<typename pcl::PointCloud<T>::Ptr> &clouds, const std::vector<ModelCoeffT::Ptr> &coeffs){
