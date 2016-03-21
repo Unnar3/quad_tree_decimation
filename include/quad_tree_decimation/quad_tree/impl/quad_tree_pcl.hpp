@@ -51,7 +51,7 @@ void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr b
 
 
     std::vector<int> holeIdx;
-    QuadTreePCL<PointT>::holeCheck(boundary, holeIdx, 0.1);
+    QuadTreePCL<PointT>::holeCheck(boundary, holeIdx, 0.2);
 
 
     std::vector<QTD::quadPoint> qtd_boundary;
@@ -115,6 +115,10 @@ void QuadTreePCL<PointT>::holeCheck(const typename pcl::PointCloud<PointT>::Ptr 
         return std::pow((b.x-a.x),2) + std::pow((b.y-a.y),2) < distance_threshold;
     };
 
+    auto squared_point_distance_value = [distance_threshold](PointT a, PointT b){
+        return std::sqrt(std::pow((b.x-a.x),2) + std::pow((b.y-a.y),2));
+    };
+
     int start = 0;
     bool has_left_origin = false;
     for(size_t i = 0; i < boundary->size()-1; ++i){
@@ -131,6 +135,15 @@ void QuadTreePCL<PointT>::holeCheck(const typename pcl::PointCloud<PointT>::Ptr 
                 // Step to big, still need to check if circle has been closed => close to starting point
                 if( squared_point_distance(boundary->at(i), boundary->at(start)) ){
                     // Can close circle.
+                    splits.push_back(i+1);
+                    start = i+1;
+                    has_left_origin = false;
+                } else {
+                    std::cout << "BIG ASS DISTANCE, WHAT TO DO??? " << std::endl;
+                    std::cout << "origin: " <<  squared_point_distance_value(boundary->at(i), boundary->at(start)) << std::endl;
+                    std::cout << "next: " <<  squared_point_distance_value(boundary->at(i), boundary->at(i+1)) << std::endl;
+                    std::cout << "first last: " <<  squared_point_distance_value(boundary->at(start), boundary->at(boundary->size()-1)) << std::endl;
+                    std::cout << "size: " << splits.size() << std::endl;
                     splits.push_back(i+1);
                     start = i+1;
                     has_left_origin = false;

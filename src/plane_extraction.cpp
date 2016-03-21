@@ -193,7 +193,7 @@ namespace QTD{
 
 		ppr::SurfaceRefinement * refinement;
 		refinement = new ppr::SurfaceRefinement();
-		refinement->use_colors = true;
+		refinement->use_colors = false;
 		refinement->setDebugg(false);
 		refinement->setVisualize(false);
 		refinement->setMaxDistance(max_dist);
