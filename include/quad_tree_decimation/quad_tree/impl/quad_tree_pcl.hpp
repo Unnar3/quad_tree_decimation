@@ -67,24 +67,24 @@ void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr b
         }
     }
 
+    if(polygonstartIdx.size() > 0){
+        auto startNew = polygonstartIdx.begin();
+        startNew++;
+        for(size_t i = 0; i < qtd_boundary.size()-1; ++i){
 
-    auto startNew = polygonstartIdx.begin();
-    startNew++;
-    for(size_t i = 0; i < qtd_boundary.size()-1; ++i){
-
-        if(i+1 != *startNew)
-            quad.insertSegment( qtd_boundary[i], qtd_boundary[i+1] );
-        else{
-            if(*startNew != polygonstartIdx.back())
-                startNew++;
+            if(i+1 != *startNew)
+                quad.insertSegment( qtd_boundary[i], qtd_boundary[i+1] );
+            else{
+                if(*startNew != polygonstartIdx.back())
+                    startNew++;
+            }
         }
+
+        QTD::quadPoint qtd_min(min.x, min.y);
+        QTD::quadPoint qtd_max(max.x, max.y);
+        polygonstartIdx.push_back(qtd_boundary.size());
+        quad.markAsExternal(qtd_boundary, polygonstartIdx, qtd_min, qtd_max);
     }
-
-    QTD::quadPoint qtd_min(min.x, min.y);
-    QTD::quadPoint qtd_max(max.x, max.y);
-    polygonstartIdx.push_back(qtd_boundary.size());
-    quad.markAsExternal(qtd_boundary, polygonstartIdx, qtd_min, qtd_max);
-
     QuadTreePCL<PointT>::rotateFromAxis<PointT>(boundary);
 
 }
@@ -160,25 +160,58 @@ bool QuadTreePCL<PointT>::holeCheckNew(const typename pcl::PointCloud<PointT>::P
 
                 newBoundary.back()->push_back(boundary->at(i));
 
-                if(tmp_segment->size() != 0){
+                if(squared_point_distance(newBoundary.back()->front(), newBoundary.back()->back())){
+                    newBoundary.back()->push_back(newBoundary.back()->points.front());
+                    if(tmp_segment->size() != 0){
+                        // close it as well
+                        newBoundary.push_back(tmp_segment);
+                        newBoundary.back()->push_back(newBoundary.back()->front());
+                    }
+                }
+
+
+                else if(tmp_segment->size() != 0){
                     typename pcl::PointCloud<PointT>::Ptr tmp_combined (new pcl::PointCloud<PointT>());
+
+
                     if(combineSegments(newBoundary.back(), tmp_segment, tmp_combined, dist)){
                         *newBoundary.back() = *tmp_combined;
+                        return true;
                     } else {
-                        std::cout << "Strange ASS boundary, can't detect holes, hoping for the best !!!" << std::endl;
                         newBoundary.resize(1);
                         *newBoundary[0] = *boundary;
                         newBoundary.push_back(tmp_segment);
                         return false;
                     }
                 }
-
-                else if(squared_point_distance(newBoundary.back()->front(), newBoundary.back()->back())){
-                    newBoundary.back()->push_back(newBoundary.back()->points.front());
-                } else {
+                // Check if this newest segment is a polygon (should be)
+                // else if(squared_point_distance(newBoundary.back()->front(), newBoundary.back()->back())){
+                //     newBoundary.back()->push_back(newBoundary.back()->points.front());
+                // }
+                else {
                     // remove this segment from the dataset
                     newBoundary.resize(newBoundary.size()-1);
                 }
+
+                // if(tmp_segment->size() != 0){
+                //     typename pcl::PointCloud<PointT>::Ptr tmp_combined (new pcl::PointCloud<PointT>());
+                //     if(combineSegments(newBoundary.back(), tmp_segment, tmp_combined, dist)){
+                //         *newBoundary.back() = *tmp_combined;
+                //     } else {
+                //         std::cout << "Strange ASS boundary, can't detect holes, hoping for the best !!!" << std::endl;
+                //         newBoundary.resize(1);
+                //         *newBoundary[0] = *boundary;
+                //         newBoundary.push_back(tmp_segment);
+                //         return false;
+                //     }
+                // }
+                //
+                // else if(squared_point_distance(newBoundary.back()->front(), newBoundary.back()->back())){
+                //     newBoundary.back()->push_back(newBoundary.back()->points.front());
+                // } else {
+                //     // remove this segment from the dataset
+                //     newBoundary.resize(newBoundary.size()-1);
+                // }
 
                 return true;
             }
