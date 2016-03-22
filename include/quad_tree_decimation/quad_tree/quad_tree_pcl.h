@@ -61,6 +61,7 @@ private:
     void rotateFromAxis(typename pcl::PointCloud<T>::Ptr cloud);
 
     void holeCheck(const typename pcl::PointCloud<PointT>::Ptr boundary, std::vector<int> &splits, float dist);
+    bool holeCheckNew(const typename pcl::PointCloud<PointT>::Ptr boundary, std::vector<typename pcl::PointCloud<PointT>::Ptr> &newBoundary, float dist);
 
     int roundDown(float toRound){
         int tmp = std::abs(std::floor(toRound));

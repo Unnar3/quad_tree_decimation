@@ -51,37 +51,47 @@ void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr b
 
 
     std::vector<int> holeIdx;
-    QuadTreePCL<PointT>::holeCheck(boundary, holeIdx, 0.2);
+    // QuadTreePCL<PointT>::holeCheck(boundary, holeIdx, 0.2);
+    std::vector<typename pcl::PointCloud<PointT>::Ptr> newBoundary;
+    QuadTreePCL<PointT>::holeCheckNew(boundary, newBoundary, 0.2);
 
 
     std::vector<QTD::quadPoint> qtd_boundary;
-
-
-
-    pcl::PCDWriter writer;
-    std::string save_path = "/home/unnar/catkin_ws/src/quad_tree_decimation_examples/data/test_cloud_mesh/";
-
-    QTD::quadPoint qtd_min(min.x, min.y);
-    QTD::quadPoint qtd_max(max.x, max.y);
-
-    // start by filling quadpoints.
-    int start = 0;
-    auto split = holeIdx.begin();
-    int inc = 0;
     std::vector<int> polygonstartIdx;
-    polygonstartIdx.push_back(0);
-    for(size_t i = 0; i < holeIdx.size(); ++i){
-        int begin;
-
-        if(i == 0) begin = 0;
-        else begin = holeIdx[i-1];
-
-        for(size_t j = begin; j < holeIdx[i]; ++j){
-            qtd_boundary.push_back(QTD::quadPoint(boundary->at(j).x, boundary->at(j).y));
+    for(auto &cloud : newBoundary){
+        polygonstartIdx.push_back( qtd_boundary.size() );
+        qtd_boundary.reserve(qtd_boundary.size() + cloud->size());
+        for(auto p : cloud->points){
+            qtd_boundary.push_back(QTD::quadPoint(p.x, p.y));
         }
-        qtd_boundary.push_back(QTD::quadPoint(boundary->at(begin).x, boundary->at(begin).y));
-        polygonstartIdx.push_back(qtd_boundary.size());
     }
+
+
+
+
+
+    // pcl::PCDWriter writer;
+    // std::string save_path = "/home/unnar/catkin_ws/src/quad_tree_decimation_examples/data/test_cloud_mesh/";
+    //
+    // // start by filling quadpoints.
+    // int start = 0;
+    // auto split = holeIdx.begin();
+    // int inc = 0;
+    // std::vector<int> polygonstartIdx;
+    // polygonstartIdx.push_back(0);
+    // for(size_t i = 0; i < holeIdx.size(); ++i){
+    //     int begin;
+    //
+    //     if(i == 0) begin = 0;
+    //     else begin = holeIdx[i-1];
+    //
+    //     for(size_t j = begin; j < holeIdx[i]; ++j){
+    //         qtd_boundary.push_back(QTD::quadPoint(boundary->at(j).x, boundary->at(j).y));
+    //     }
+    //     qtd_boundary.push_back(QTD::quadPoint(boundary->at(begin).x, boundary->at(begin).y));
+    //     polygonstartIdx.push_back(qtd_boundary.size());
+    // }
+
 
     auto startNew = polygonstartIdx.begin();
     startNew++;
@@ -95,12 +105,80 @@ void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr b
         }
     }
 
+    QTD::quadPoint qtd_min(min.x, min.y);
+    QTD::quadPoint qtd_max(max.x, max.y);
     polygonstartIdx.push_back(qtd_boundary.size());
     quad.markAsExternal(qtd_boundary, polygonstartIdx, qtd_min, qtd_max);
 
     QuadTreePCL<PointT>::rotateFromAxis<PointT>(boundary);
 
 }
+
+template <typename PointT>
+bool QuadTreePCL<PointT>::holeCheckNew(const typename pcl::PointCloud<PointT>::Ptr boundary, std::vector<typename pcl::PointCloud<PointT>::Ptr> &newBoundary, float dist){
+    // Do a very simple distance check and return indices to first point after split.
+
+    float distance_threshold = dist*dist;
+
+    // Returns true if the distance between a and b is less than dist_threshold.
+    // return |b-a| < dist_threshold.
+    auto squared_point_distance = [distance_threshold](PointT a, PointT b){
+        return std::pow((b.x-a.x),2) + std::pow((b.y-a.y),2) < distance_threshold;
+    };
+
+    int start = 0;
+    bool has_left_origin = false;
+
+    // pcl::PointCloud<PointT>::Ptr tmp (new pcl::PointCloud<PointT>());
+    newBoundary.push_back(typename pcl::PointCloud<PointT>::Ptr (new pcl::PointCloud<PointT>()));
+    for(size_t i = 0; i < boundary->size(); ++i){
+
+        if( i == boundary->size() - 1){
+            // Need to close last boundary.
+            newBoundary.back()->push_back(boundary->at(i));
+            newBoundary.back()->push_back(newBoundary.back()->points.front());
+            return true;
+        }
+
+        else if( newBoundary.back()->size() == 0 ){
+            newBoundary.back()->push_back(boundary->at(i));
+        }
+
+        else {
+            // Check if distance between current and next is to large
+            if( !squared_point_distance(boundary->at(i), boundary->at(i+1)) ){
+                // Step to big, still need to check if circle has been closed => close to starting point
+                if( squared_point_distance(boundary->at(i), newBoundary.back()->points.front()) ){
+                    // Can close circle.
+                    newBoundary.back()->push_back(boundary->at(i));
+                    newBoundary.back()->push_back(newBoundary.back()->points.front());
+                    start = i+1;
+                    newBoundary.push_back(typename pcl::PointCloud<PointT>::Ptr (new pcl::PointCloud<PointT>()));
+                    // newBoundary.back()->clear();
+
+                    // has_left_origin = false;
+                } else if( squared_point_distance(boundary->at(i+1), newBoundary.back()->points.front()) ){
+                    // have a stupid ordering of points
+                    newBoundary.back()->push_back(boundary->at(i));
+                    std::reverse(newBoundary.back()->points.begin(), newBoundary.back()->points.end());
+
+
+                } else {
+
+                    std::cout << "OMG! Strange ass boundary, can't determine holes, Hope for the best !!!" << std::endl;
+                    newBoundary.resize(1);
+                    newBoundary[0] = boundary;
+                    newBoundary[0]->push_back(boundary->at(0));
+                    return false;
+                }
+            } else {
+                newBoundary.back()->push_back(boundary->at(i));
+            }
+
+        }
+    }
+}
+
 
 
 template <typename PointT>
