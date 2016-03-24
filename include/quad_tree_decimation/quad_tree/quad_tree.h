@@ -84,7 +84,11 @@ public:
                         const quadPoint &max);
     // void insertHole(Polygon polygon);
     void extractCells(std::vector<QuadTree::Cell> &cells);
+
+    // TODO: creates 3 points for each triangle, these points have ofted been created before => can be reused.
     void extractTriangles(std::vector<quadPoint> &cells, std::vector<std::vector<int> > &indices);
+
+
     void extractBoundaryPoints(std::vector<quadPoint> &points);
 
     // Determines if color information will be used in decemation.

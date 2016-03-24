@@ -187,7 +187,7 @@ bool QuadTree::lineOnCellIntersections(quadPoint a, quadPoint b){
     if(count_inside == 2) return true;
 
     count_inside_before = count_inside;
-    std::vector<quadPoint> dafuck;
+    // std::vector<quadPoint> dafuck;
     quadPoint cstart, cend, out;
     // left bottom to right bottom
     cstart.x = x_;
@@ -200,7 +200,7 @@ bool QuadTree::lineOnCellIntersections(quadPoint a, quadPoint b){
         // if(intersectionPoints_.back() != out)
         //     intersectionPoints_.push_back(out);
     }
-    dafuck.push_back(out);
+    // dafuck.push_back(out);
     // right bottom to right top
     cstart.x = x_ + width_;
     cstart.y = y_;
@@ -212,7 +212,7 @@ bool QuadTree::lineOnCellIntersections(quadPoint a, quadPoint b){
         // if(intersectionPoints_.back() != out)
         //     intersectionPoints_.push_back(out);
     }
-    dafuck.push_back(out);
+    // dafuck.push_back(out);
 
     // right top to left top
     cstart.x = x_ + width_;
@@ -225,7 +225,7 @@ bool QuadTree::lineOnCellIntersections(quadPoint a, quadPoint b){
         // if(intersectionPoints_.back() != out)
         //     intersectionPoints_.push_back(out);
     }
-    dafuck.push_back(out);
+    // dafuck.push_back(out);
 
     // left top to left bottom
     cstart.x = x_;
@@ -238,7 +238,7 @@ bool QuadTree::lineOnCellIntersections(quadPoint a, quadPoint b){
         // if(intersectionPoints_.back() != out)
         //     intersectionPoints_.push_back(out);
     }
-    dafuck.push_back(out);
+    // dafuck.push_back(out);
 
     // if(ainsert){
     //     insertPoints(a, intersectionPoints_);
@@ -249,16 +249,16 @@ bool QuadTree::lineOnCellIntersections(quadPoint a, quadPoint b){
     //     count_inside++;
     // }
 
-    if(count_inside < 2){
-        std::cout << "before: " << count_inside_before << std::endl;
-        std::cout << "DAFUCKKKKKKKKKKKKKK" << std::endl;
-        std::cout << "cell: " << x_ << ", " << y_ << ", " << width_ << std::endl;
-        std::cout << "pointa: " << a.x << "," << a.y << std::endl;
-        std::cout << "pointb: " << b.x << "," << b.y << std::endl;
-        for(auto p : dafuck){
-            std::cout << "out: " << p.x << ", " << p.y << std::endl;
-        }
-    }
+    // if(count_inside < 2){
+        // std::cout << "before: " << count_inside_before << std::endl;
+        // std::cout << "DAFUCKKKKKKKKKKKKKK" << std::endl;
+        // std::cout << "cell: " << x_ << ", " << y_ << ", " << width_ << std::endl;
+        // std::cout << "pointa: " << a.x << "," << a.y << std::endl;
+        // std::cout << "pointb: " << b.x << "," << b.y << std::endl;
+        // for(auto p : dafuck){
+        //     std::cout << "out: " << p.x << ", " << p.y << std::endl;
+        // }
+    // }
 
     if(intersectionPoints_.size() > 0)
         return true;

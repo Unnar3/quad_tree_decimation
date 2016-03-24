@@ -44,8 +44,8 @@ void QuadTreePCL<PointT>::insertBoundary(typename pcl::PointCloud<PointT>::Ptr b
         // initialize the quadtree
         quad = QuadTree(1,std::ceil(std::max(max.x-std::floor(min.x), max.y-std::floor(min.y))),std::floor(min.x),std::floor(min.y));
         // quad = QuadTree(1,5,0,0);
-        quad.setMaxWidth(0.05);
-        boundaryCells.resize(std::ceil(5.0/0.1));
+        quad.setMaxWidth(0.1);
+        // boundaryCells.resize(std::ceil(5.0/0.1));
         inserted_ = true;
     }
 
@@ -481,87 +481,62 @@ void QuadTreePCL<PointT>::createTexture(
         cv::Mat &image,
         std::vector<Eigen::Vector2f> &vertex_texture){
 
+
     float r = 100;
     typename pcl::PointCloud<T>::Ptr texture_tmp (new pcl::PointCloud<T>);
     typename pcl::PointCloud<T>::Ptr triangle_tmp (new pcl::PointCloud<T>);
     rotateToAxis(texture_cloud, texture_tmp);
     rotateToAxis(triangle_cloud, triangle_tmp);
 
-    image = cv::Mat::zeros(r*quad.width(), r*quad.width(), CV_8UC3); // RGB image
+    image = cv::Mat::zeros(r*quad.width(), r*quad.width(), CV_8UC3);
+    cv::Mat image_tmp = cv::Mat::zeros(r*quad.width(), r*quad.width(), CV_16UC3); // RGB image
+    cv::Mat mask = cv::Mat::zeros(image_tmp.rows,image_tmp.cols,CV_8UC1);
+    cv::Mat average = cv::Mat::ones(image_tmp.rows,image_tmp.cols,CV_8UC1);
 
 
-    pcl::KdTreeFLANN<T> kdtree;
-    kdtree.setInputCloud(texture_tmp);
+    for(auto p : texture_tmp->points){
+        int x = std::floor( (p.x - quad.x())/quad.width() * image_tmp.cols);
+        int y = std::floor( (p.y - quad.y())/quad.width() * image_tmp.rows);
 
+        image_tmp.at<cv::Vec3s>(image_tmp.rows - y - 1, x)[0] += p.b;
+        image_tmp.at<cv::Vec3s>(image_tmp.rows - y - 1, x)[1] += p.g;
+        image_tmp.at<cv::Vec3s>(image_tmp.rows - y - 1, x)[2] += p.r;
+        average.at<uchar>(image_tmp.rows - y - 1, x) += 1;
+        mask.at<uchar>(image_tmp.rows - y - 1, x) = 1;
 
-    float radius = 0.1;
-
-
-
-
-    T p;
-    p.z = texture_tmp->at(0).z;
-    for(size_t rows = 0; rows < image.rows; ++rows){
-        for(size_t cols = 0; cols < image.cols; ++cols){
-            // p.x = quad.x() + cols / r + 0.5/r;
-
-            p.x = cols*quad.width()/image.cols + quad.x() + 0.5/r;
-            p.y = quad.y()+quad.width() - rows*quad.width()/image.rows - 0.5/r;
-            // p.y =  - p.y;
-
-            // p.y = quad.y() + quad.width() - rows/r - 0.5/r;
-
-
-            // std::cout << "rect: xmin: " << quad.x() << " xmax " << quad.x()+quad.width();
-            // std::cout << " ymin: " << quad.y() << " ymax " << quad.y()+quad.width()<< std::endl;
-            // std::cout << "point: x " << p.x << " y " << p.y << std::endl;
-
-            int R = 0, G = 0 , B = 0;
-            std::vector<int> pointIdxRadiusSearch;
-            std::vector<float> pointRadiusSquaredDistance;
-
-            int size = kdtree.radiusSearch (p, 0.5/r, pointIdxRadiusSearch, pointRadiusSquaredDistance);
-
-            if(size == 0){
-                size = kdtree.radiusSearch (p, 1/r, pointIdxRadiusSearch, pointRadiusSquaredDistance);
-                if(size == 0){
-                    size = kdtree.radiusSearch (p, 2/r, pointIdxRadiusSearch, pointRadiusSquaredDistance);
-                    if(size == 0){
-                        size = kdtree.radiusSearch (p, 10/r, pointIdxRadiusSearch, pointRadiusSquaredDistance);
-                    }
-                }
+    }
+    for(size_t rows = 0; rows < image_tmp.rows; ++rows){
+        for(size_t cols = 0; cols < image_tmp.cols; ++cols){
+            if( (int)(average.at<uchar>(rows,cols)) > 1 ){
+                image_tmp.at<cv::Vec3s>(rows,cols)[0] = image_tmp.at<cv::Vec3s>(rows,cols)[0] / average.at<uchar>(rows,cols);
+                image_tmp.at<cv::Vec3s>(rows,cols)[1] = image_tmp.at<cv::Vec3s>(rows,cols)[1] / average.at<uchar>(rows,cols);
+                image_tmp.at<cv::Vec3s>(rows,cols)[2] = image_tmp.at<cv::Vec3s>(rows,cols)[2] / average.at<uchar>(rows,cols);
             }
-
-            if ( size > 0 )
-            {
-                // int Rtmp, Gtmp, Btmp;
-                for (size_t k = 0; k < pointIdxRadiusSearch.size (); ++k){
-                    R += texture_tmp->at(pointIdxRadiusSearch[k]).r;
-                    G += texture_tmp->at(pointIdxRadiusSearch[k]).g;
-                    B += texture_tmp->at(pointIdxRadiusSearch[k]).b;
-                    // if(Rtmp != 0 && Gtmp != 0 && Btmp != 0 ){
-                    //     R += Rtmp;
-                    //     G += Gtmp;
-                    //     B += Btmp;
-                    // }
-                }
-                R /= pointIdxRadiusSearch.size();
-                G /= pointIdxRadiusSearch.size();
-                B /= pointIdxRadiusSearch.size();
-            }
-            image.at<cv::Vec3b>(rows,cols)[0] = B;
-            image.at<cv::Vec3b>(rows,cols)[1] = G;
-            image.at<cv::Vec3b>(rows,cols)[2] = R;
         }
     }
 
-    // for(auto p : texture_tmp->points){
-    //     int x = std::floor( (p.x - quad.x())/quad.width() * image.cols);
-    //     int y = std::floor( (p.y - quad.y())/quad.width() * image.rows);
-    //     image.at<cv::Vec3b>(image.rows - y - 1, x)[0] = p.b;
-    //     image.at<cv::Vec3b>(image.rows - y - 1, x)[1] = p.g;
-    //     image.at<cv::Vec3b>(image.rows - y - 1, x)[2] = p.r;
-    // }
+    cv::Mat kernel = cv::Mat::ones(10,10, CV_8UC1);
+    cv::Mat mask_blur = cv::Mat::zeros(image_tmp.rows,image_tmp.cols,CV_8UC1);
+    cv::Mat image_blur;
+    filter2D( mask, mask_blur, -1, kernel, cv::Point(-1,-1), 0, cv::BORDER_DEFAULT );
+    filter2D( image_tmp, image_blur, -1, kernel, cv::Point(-1,-1), 0, cv::BORDER_DEFAULT );
+
+
+    for(size_t rows = 0; rows < image_tmp.rows; ++rows){
+        for(size_t cols = 0; cols < image_tmp.cols; ++cols){
+            if((int)(mask.at<uchar>(rows,cols)) > 0){
+                image.at<cv::Vec3b>(rows,cols)[0] = image_tmp.at<cv::Vec3s>(rows,cols)[0];
+                image.at<cv::Vec3b>(rows,cols)[1] = image_tmp.at<cv::Vec3s>(rows,cols)[1];
+                image.at<cv::Vec3b>(rows,cols)[2] = image_tmp.at<cv::Vec3s>(rows,cols)[2];
+            }
+            else if((int)(mask_blur.at<uchar>(rows,cols)) > 0){
+                image.at<cv::Vec3b>(rows,cols)[0] = image_blur.at<cv::Vec3s>(rows,cols)[0] / mask_blur.at<uchar>(rows,cols);
+                image.at<cv::Vec3b>(rows,cols)[1] = image_blur.at<cv::Vec3s>(rows,cols)[1] / mask_blur.at<uchar>(rows,cols);
+                image.at<cv::Vec3b>(rows,cols)[2] = image_blur.at<cv::Vec3s>(rows,cols)[2] / mask_blur.at<uchar>(rows,cols);
+            }
+        }
+    }
+
 
     vertex_texture.resize(triangle_tmp->size());
     for(int i = 0; i < triangle_tmp->size(); ++i){

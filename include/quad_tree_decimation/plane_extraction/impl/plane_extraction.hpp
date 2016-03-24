@@ -68,7 +68,8 @@ namespace QTD{
                     }
                     if(std::abs(tmp) < minimum) minimum = std::abs(tmp);
                 }
-                if( !((minus != 0 && plus != 0) || minimum < 0.05)  ){
+                // if( !((minus != 0 && plus != 0) || (minimum < 0.05 && std::max(std::abs(minus), plus) < 0.2))  ){
+                if( !((minus != 0 && plus != 0) || minimum < 0.1)  ){
                 // if((minus == 0 || plus == 0) && minimum > 0.05){
                     j++;
                     continue;

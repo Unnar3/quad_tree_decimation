@@ -64,6 +64,10 @@ namespace QTD{
         template <typename T>
         void projectToPlane(typename pcl::PointCloud<T>::Ptr cloud, const ModelCoeffT::Ptr coeff);
 
+
+
+        // This was a last minute hack to try to merge similar planes together based on normal and distance.
+        // Can sometimes give better results, but can also perform unwanted merging :)
         template <typename T>
         void mergePlanes(std::vector<typename pcl::PointCloud<T>::Ptr> &clouds, std::vector<ModelCoeffT::Ptr> &coeffs);
 

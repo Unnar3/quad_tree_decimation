@@ -280,11 +280,11 @@ namespace QTD{
                         PointCloudT::Ptr        plane,
                         pcl::PointIndices::Ptr  inliers){
 
+        std::cout << "input points: " << cloud->points.size() << std::endl;
         extractIndicesAndRemoveFromOriginal<PointT>(cloud, plane, inliers);
         PointCloudN::Ptr normals_plane (new PointCloudN());
         extractIndicesAndRemoveFromOriginal<PointN>(normals, normals_plane, inliers);
 
-        std::cout << "input points: " << cloud->points.size() << std::endl;
 
         std::vector<PointCloudT::Ptr> planes;
 
