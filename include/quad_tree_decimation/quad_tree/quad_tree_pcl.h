@@ -17,15 +17,23 @@ class QuadTreePCL{
     QuadTree quad;
     Eigen::Vector3f normal_;
     Eigen::Quaternion<float> quaternion_;
+    float max_width_;
     float z_;
 public:
 
-    QuadTreePCL(int level, float width, float x, float y){
+    QuadTreePCL(int level, float width, float x, float y, float max_width=0.1){
                 normalVectorSet = false;
                 inserted_ = false;
+                max_width_ = max_width;
     }
+
+    QuadTreePCL(float max_width)
+        :  QuadTreePCL(1,0,0,0,max_width){
+    }
+
     QuadTreePCL()
-        :  QuadTreePCL(1,0,0,0){}
+        :  QuadTreePCL(1,0,0,0){
+    }
     ~QuadTreePCL(){}
 
     void insertBoundary(typename pcl::PointCloud<PointT>::Ptr boundary);

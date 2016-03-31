@@ -28,13 +28,15 @@ namespace QTD{
             if(extractPlaneEfficientRANSAC(nonPlanar, normals, indices, coeff)){
 
                 PointCloudT::Ptr plane (new PointCloudT());
+                PointCloudN::Ptr plane_normals (new PointCloudN());
 
-                if(runPPRSinglePlane(nonPlanar, normals, coeff, plane)){
+                if(runPPRSinglePlane(nonPlanar, normals, coeff, plane, plane_normals)){
                     if(plane->points.size() > 250){
                         plane_vec.push_back(plane);
                         coeff_vec.push_back(coeff);
                     } else {
                         *nonPlanar += *plane;
+                        *normals += *plane_normals;
                         fail_count++;
                     }
                 } else {
@@ -109,7 +111,8 @@ namespace QTD{
             PointCloudT::Ptr    nonPlanar,
             PointCloudN::Ptr    normals,
             ModelCoeffT::Ptr    coeff,
-            PointCloudT::Ptr    plane){
+            PointCloudT::Ptr    plane,
+            PointCloudN::Ptr    plane_normals){
 
 
 
@@ -120,7 +123,7 @@ namespace QTD{
             return false;
         }
         // PointCloudT::Ptr plane (new PointCloudT);
-        extractIndices(nonPlanar, normals, plane, inliers);
+        extractIndices(nonPlanar, normals, plane, plane_normals, inliers);
         return true;
 
     }
@@ -193,7 +196,7 @@ namespace QTD{
 
 		ppr::SurfaceRefinement * refinement;
 		refinement = new ppr::SurfaceRefinement();
-		refinement->use_colors = false;
+		refinement->use_colors = true;
 		refinement->setDebugg(false);
 		refinement->setVisualize(false);
 		refinement->setMaxDistance(max_dist);
@@ -278,6 +281,7 @@ namespace QTD{
     void planeExtraction::extractIndices(PointCloudT::Ptr        cloud,
                         PointCloudN::Ptr        normals,
                         PointCloudT::Ptr        plane,
+                        PointCloudN::Ptr        plane_normals,
                         pcl::PointIndices::Ptr  inliers){
 
         std::cout << "input points: " << cloud->points.size() << std::endl;
@@ -302,14 +306,17 @@ namespace QTD{
             // *planet = *plane;
 
             for (size_t i = 0; i < planes.size(); i++) {
+
+                PointCloudN::Ptr normals_tmp (new PointCloudN());
+                pcl::PointIndices::Ptr inliers_tmp (new pcl::PointIndices());
+                inliers_tmp->indices = cluster_indices[i].indices;
+                extractIndicesFromOriginal<PointN>(normals_plane, normals_tmp, inliers_tmp);
+
                 if(i == ind){
                     *plane = *planes[i];
+                    *plane_normals = *normals_tmp;
                 } else {
                     *cloud += *planes[i];
-                    PointCloudN::Ptr normals_tmp (new PointCloudN());
-                    pcl::PointIndices::Ptr inliers_tmp (new pcl::PointIndices());
-                    inliers_tmp->indices = cluster_indices[i].indices;
-                    extractIndicesFromOriginal<PointN>(normals_plane, normals_tmp, inliers_tmp);
                     *normals += *normals_tmp;
                 }
             }

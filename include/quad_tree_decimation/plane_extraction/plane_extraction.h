@@ -88,7 +88,8 @@ namespace QTD{
         bool runPPRSinglePlane( PointCloudT::Ptr        nonPlanar,
                                 PointCloudN::Ptr        normals,
                                 ModelCoeffT::Ptr        coeff,
-                                PointCloudT::Ptr        plane);
+                                PointCloudT::Ptr        plane,
+                                PointCloudN::Ptr        plane_normals);
 
 
         pcl::PointIndices::Ptr segmentPPR(  pcl::PointCloud<pcl::PointXYZRGB>::Ptr  cloud,
@@ -129,6 +130,7 @@ namespace QTD{
                 PointCloudT::Ptr        cloud,
                 PointCloudN::Ptr        normals,
                 PointCloudT::Ptr        plane,
+                PointCloudN::Ptr        plane_normals,
                 pcl::PointIndices::Ptr  inliers);
 
         template <typename EIG>

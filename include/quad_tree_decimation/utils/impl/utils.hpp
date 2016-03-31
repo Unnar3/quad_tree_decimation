@@ -138,7 +138,8 @@ namespace QTD{
       m_fs << "# Wavefront material file" << std::endl;
       m_fs << "#" << std::endl;
       for(int m = 0; m < object.images.size(); ++m){
-          std::string image_path = path + "/texture_" + std::to_string(m) + ".png";
+          std::string image_name = "texture_" + std::to_string(m) + ".png";
+          std::string image_path = path + "/" + image_name;
           cv::imwrite(image_path, object.images[m]);
             m_fs << "newmtl " << "material_" << m << std::endl;
             m_fs << "Ka "<< "0.2 0.2 0.2" << std::endl; // defines the ambient color of the material to be (r,g,b).
@@ -149,7 +150,7 @@ namespace QTD{
             m_fs << "illum "<< "2" << std::endl; // denotes the illumination model used by the material.
             // illum = 1 indicates a flat material with no specular highlights, so the value of Ks is not used.
             // illum = 2 denotes the presence of specular highlights, and so a specification for Ks is required.
-            m_fs << "map_Kd " << image_path << std::endl;
+            m_fs << "map_Kd " << image_name << std::endl;
             m_fs << "###" << std::endl;
       }
       m_fs.close ();

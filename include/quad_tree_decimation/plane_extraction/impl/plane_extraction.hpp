@@ -34,11 +34,14 @@ namespace QTD{
     void planeExtraction::mergePlanes(std::vector<typename pcl::PointCloud<T>::Ptr> &clouds, std::vector<ModelCoeffT::Ptr> &coeffs){
 
 
-
+        if(clouds.size() == 0 ) return;
         for(size_t i = 0; i < clouds.size()-1; ++i){
             int j = i+1;
+            std::cout << "hihihihih" << std::endl;
+            std::cout << "i: " << i << "  clouds size: " << clouds.size() << std::endl;
             while(j < clouds.size()){
-            // for(size_t j = i; j < clouds->size(); ++j){
+                std::cout << "hohohoh" << std::endl;
+                // for(size_t j = i; j < clouds->size(); ++j){
                 // Step 1: calculate the angle between the two planes.
                 if(planeExtraction::normalAngleDifference(coeffs[i], coeffs[j]) > M_PI/9 ){
                     j++;
@@ -69,7 +72,7 @@ namespace QTD{
                     if(std::abs(tmp) < minimum) minimum = std::abs(tmp);
                 }
                 // if( !((minus != 0 && plus != 0) || (minimum < 0.05 && std::max(std::abs(minus), plus) < 0.2))  ){
-                if( !((minus != 0 && plus != 0) || minimum < 0.1)  ){
+                if( !((minus != 0 && plus != 0) || minimum < 0.05)  ){
                 // if((minus == 0 || plus == 0) && minimum > 0.05){
                     j++;
                     continue;

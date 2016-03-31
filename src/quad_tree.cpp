@@ -450,7 +450,8 @@ void QuadTree::extractTriangles(std::vector<quadPoint> &cells, std::vector<std::
 
 void QuadTree::extractCells(std::vector<QuadTree::Cell> &cells){
 
-    if(is_leaf_ && cellType_ != Exterior && cellType_ != Hole){
+    // if(is_leaf_ && cellType_ != Exterior && cellType_ != Hole){
+    if(is_leaf_){
     // if(is_leaf_  && cellType_ != Hole){
         QuadTree::Cell c;
         c.x = x_;
